@@ -15,6 +15,12 @@
     <string name="api_key_build">ビルド時のキーを使用中。上書きする場合はここに入力</string>
     <string name="api_key_unset">未設定。時計の音声検索は使えません（お気に入りの再生はできます）</string>
     <string name="api_key_saved">API キーを保存しました</string>
+    <string name="api_key_howto">取得手順（無料。1 日 10,000 ユニット＝検索約 100 回）</string>
+    <string name="api_key_step1">1. Google Cloud でプロジェクトを作り、YouTube Data API v3 を有効にする</string>
+    <string name="api_key_step2">2. 「認証情報を作成」→「API キー」で発行し、上の欄に貼り付ける</string>
+    <string name="api_key_link_enable">API を有効化</string>
+    <string name="api_key_link_credentials">API キーを発行</string>
+    <string name="api_key_link_quota">利用量を確認</string>
 
     <!-- 同期 -->
     <string name="sync_title">時計との同期</string>

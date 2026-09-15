@@ -29,6 +29,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,6 +43,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -189,9 +191,30 @@ private fun ApiKeyCard(
                     OutlinedButton(onClick = onClear) { Text(stringResource(R.string.api_key_clear)) }
                 }
             }
+            ApiKeyHowTo()
         }
     }
 }
+
+/** Google Cloud でのキー取得手順と、各画面へのリンク。 */
+@Composable
+private fun ApiKeyHowTo() {
+    val uriHandler = LocalUriHandler.current
+    Column(modifier = Modifier.padding(top = 12.dp)) {
+        Text(stringResource(R.string.api_key_howto), style = MaterialTheme.typography.labelLarge)
+        Text(stringResource(R.string.api_key_step1), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+        Text(stringResource(R.string.api_key_step2), style = MaterialTheme.typography.bodySmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(top = 4.dp)) {
+            TextButton(onClick = { uriHandler.openUri(URL_ENABLE_API) }) { Text(stringResource(R.string.api_key_link_enable)) }
+            TextButton(onClick = { uriHandler.openUri(URL_CREDENTIALS) }) { Text(stringResource(R.string.api_key_link_credentials)) }
+            TextButton(onClick = { uriHandler.openUri(URL_QUOTA) }) { Text(stringResource(R.string.api_key_link_quota)) }
+        }
+    }
+}
+
+private const val URL_ENABLE_API = "https://console.cloud.google.com/apis/library/youtube.googleapis.com"
+private const val URL_CREDENTIALS = "https://console.cloud.google.com/apis/credentials"
+private const val URL_QUOTA = "https://console.cloud.google.com/apis/api/youtube.googleapis.com/quotas"
 
 @Composable
 private fun SyncCard(
