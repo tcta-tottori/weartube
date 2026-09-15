@@ -5,7 +5,11 @@ import android.content.Context
 import android.graphics.Color
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.ViewGroup
+import android.webkit.ConsoleMessage
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -94,6 +98,7 @@ class PlayerController(
     }
 
     override fun onError(code: Int) {
+        Log.w(TAG, "IFrame Player がエラーを返しました: code=$code")
         mutableState.update { it.copy(errorCode = code, status = PlaybackStatus.IDLE) }
     }
 
@@ -106,12 +111,17 @@ class PlayerController(
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun createWebView(): WebView? {
-        if (WebView.getCurrentWebViewPackage() == null) return null
+        // Wear OS には WebViewUpdateService が無く、WebView が使えても getCurrentWebViewPackage() が
+        // null を返すことがある。事前判定はせず、実際に生成してみて失敗したときだけ「無い」とみなす。
         val view =
             try {
                 WebView(appContext)
             } catch (e: RuntimeException) {
-                // WebView パッケージが壊れている・無効化されている端末
+                // MissingWebViewPackageException など。WebView が入っていない・無効化されている
+                Log.w(TAG, "WebView を生成できません: ${e.message}")
+                return null
+            } catch (e: LinkageError) {
+                Log.w(TAG, "WebView を読み込めません: ${e.message}")
                 return null
             }
         view.settings.apply {
@@ -137,6 +147,22 @@ class PlayerController(
                     view: WebView,
                     request: WebResourceRequest,
                 ): Boolean = request.isForMainFrame
+
+                override fun onReceivedError(
+                    view: WebView,
+                    request: WebResourceRequest,
+                    error: WebResourceError,
+                ) {
+                    Log.w(TAG, "読み込み失敗: ${request.url} ${error.description}")
+                }
+            }
+        // 実機でしか再現しない不具合を adb logcat で追えるようにする
+        view.webChromeClient =
+            object : WebChromeClient() {
+                override fun onConsoleMessage(message: ConsoleMessage): Boolean {
+                    Log.d(TAG, "console: ${message.message()} (${message.sourceId()}:${message.lineNumber()})")
+                    return true
+                }
             }
         view.addJavascriptInterface(PlayerBridge(this), PlayerBridge.NAME)
         val html =
@@ -152,6 +178,7 @@ class PlayerController(
     private fun escape(videoId: String): String = videoId.filter { it.isLetterOrDigit() || it == '-' || it == '_' }
 
     private companion object {
+        const val TAG = "WearTubePlayer"
         const val PLAYER_HTML = "player.html"
         const val BASE_URL = "https://www.youtube.com"
     }

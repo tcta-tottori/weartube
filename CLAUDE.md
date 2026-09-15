@@ -120,7 +120,8 @@ webView.loadDataWithBaseURL(
 - Kotlin → JS：`evaluateJavascript("playVideo()", null)` のように player.html の関数を呼ぶ
 - JS → Kotlin：`@JavascriptInterface`（`window.Android`）で `onApiReady` / `onStateChange` / `onTime`（250ms 間隔）/ `onError`
 - 再生中は `window.addFlags(FLAG_KEEP_SCREEN_ON)`、停止時・画面を離れるときに必ず clear する
-- **WebView が無い端末を想定する**。`WebView.getCurrentWebViewPackage()` が null なら生成せず、エラー表示に落とす
+- **WebView の有無を `getCurrentWebViewPackage()` で事前判定しない**。Wear OS には WebViewUpdateService が無く、WebView が使えても null が返るため誤判定になる（実機で確認済み）。`WebView(context)` を try/catch で生成し、`RuntimeException` / `LinkageError` を捕まえたときだけエラー表示に落とす
+- 実機でしか再現しない不具合を追うため、`WebViewClient.onReceivedError` と `WebChromeClient.onConsoleMessage` を `Log`（タグ `WearTubePlayer`）に出す
 - ライブ判定に `getDuration()` を使わない（ライブでは経過時間が返る）。Data API の `liveBroadcastContent` を使う
 
 ### オーディオ

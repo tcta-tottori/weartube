@@ -230,7 +230,8 @@ settings.mediaPlaybackRequiresUserGesture = false   // 自動再生に必要
 - JS → Kotlin は `@JavascriptInterface`（`window.Android`）で `onApiReady` / `onStateChange(state, title, duration)` / `onTime`（250ms 間隔）/ `onError(code)` を受け取る。
 - HTML 側は `body{margin:0;background:#000}` とし、プレーヤーを `width:100%; aspect-ratio:16/9` で配置。ネイティブ側の黒背景と継ぎ目なく見えるようにする。
 - WebView は Application Context で生成して ViewModel が持ち、画面を離れたら `destroy()` する。WebView へのタッチは通さず（`setOnTouchListener` で消費）、Compose 側の透明レイヤーでタップを受ける。
-- **WebView の有無を起動時に確認する**。`WebView.getCurrentWebViewPackage()` が null、または生成で例外なら「この端末には WebView がなく再生できません」と表示する（7 章）。
+- **WebView の有無は生成の可否で判定する**。`getCurrentWebViewPackage()` は Wear OS では WebView が使えても null を返すため使わない。`WebView(context)` の生成で `RuntimeException` / `LinkageError` が出たときだけ「この端末には WebView がなく再生できません」と表示する（7 章）。
+- JS 側の状況は `onReceivedError` と `onConsoleMessage` を Logcat（タグ `WearTubePlayer`）に出して追う。
 - ライブ判定は IFrame API の `getDuration()` では行わない（ライブ時は経過時間を返す）。Data API の `liveBroadcastContent == "live"` を `VideoItem.isLive` に持たせて使う。
 - 検索は `type=video&videoEmbeddable=true&videoSyndicated=true` で、IFrame で再生できない動画を最初から除く。
 
@@ -260,7 +261,7 @@ APIキーはソースにハードコードせず、次の順で解決する。
 
 | 項目 | 内容・対策 |
 |---|---|
-| **WebView の可用性** | Wear OS の公式ドキュメントは `android.webkit` を非対応 API に挙げている。Pixel Watch に Android System WebView が入っているかは**実機で確認する**まで分からない（入っていなければこの設計自体が成立しない）。アプリは起動時に有無を確認し、無ければ明示エラーを出す |
+| **WebView の可用性** | Wear OS の公式ドキュメントは `android.webkit` を非対応 API に挙げている。Pixel Watch で実際に描画・再生できるかは**実機で確認する**。なお `getCurrentWebViewPackage()` は Wear OS では WebView が使えても null を返すため、可否の判定に使わない（2026-09-15 実機で誤判定を確認）。生成に失敗したときだけ明示エラーを出す |
 | 電池 | WebView + 画面点灯で消費が大きい。長時間視聴には向かない前提。設定画面に注意書きを置く |
 | 画面消灯 | 画面が消えると再生が止まる。再生中は `FLAG_KEEP_SCREEN_ON` を立て、アンビエントモードには入らない。バックグラウンド音声のみ再生は成立しないと割り切る |
 | 描画性能 | ウォッチの WebView は重く、コマ落ちする前提。画質は自動に任せ `vq` 指定はしない |
