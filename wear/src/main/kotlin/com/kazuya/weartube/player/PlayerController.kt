@@ -2,10 +2,12 @@ package com.kazuya.weartube.player
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.ContextThemeWrapper
 import android.view.ViewGroup
 import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
@@ -31,7 +33,14 @@ class PlayerController(
 
     val state: StateFlow<PlayerState> = mutableState
 
-    /** Wear OS に WebView が無い端末では null。呼び出し側は [isAvailable] を先に見る。 */
+    /**
+     * WebView を生成できなかった理由。実機でしか再現しないため、エラー画面にそのまま出して原因を追う。
+     * 生成できたときは null。
+     */
+    var unavailableReason: String? = null
+        private set
+
+    /** WebView を生成できない端末では null。呼び出し側は [isAvailable] を先に見る。 */
     val webView: WebView? = createWebView()
 
     val isAvailable: Boolean get() = webView != null
@@ -113,17 +122,34 @@ class PlayerController(
     private fun createWebView(): WebView? {
         // Wear OS には WebViewUpdateService が無く、WebView が使えても getCurrentWebViewPackage() が
         // null を返すことがある。事前判定はせず、実際に生成してみて失敗したときだけ「無い」とみなす。
-        val view =
-            try {
-                WebView(appContext)
-            } catch (e: RuntimeException) {
-                // MissingWebViewPackageException など。WebView が入っていない・無効化されている
-                Log.w(TAG, "WebView を生成できません: ${e.message}")
-                return null
-            } catch (e: LinkageError) {
-                Log.w(TAG, "WebView を読み込めません: ${e.message}")
-                return null
-            }
+        // Application Context では失敗してテーマ付き Context なら通る端末があるので、順に試す。
+        val attempts =
+            listOf<Pair<String, () -> Context>>(
+                "app" to { appContext },
+                "themed" to { ContextThemeWrapper(appContext, android.R.style.Theme_DeviceDefault) },
+            )
+        var view: WebView? = null
+        val failures = mutableListOf<String>()
+        for ((label, contextOf) in attempts) {
+            view =
+                try {
+                    WebView(contextOf())
+                } catch (e: RuntimeException) {
+                    // MissingWebViewPackageException など。WebView が入っていない・無効化されている
+                    failures += "$label=${e.javaClass.simpleName}: ${e.message?.take(REASON_LENGTH)}"
+                    null
+                } catch (e: LinkageError) {
+                    failures += "$label=${e.javaClass.simpleName}: ${e.message?.take(REASON_LENGTH)}"
+                    null
+                }
+            if (view != null) break
+        }
+        if (view == null) {
+            val hasFeature = appContext.packageManager.hasSystemFeature(PackageManager.FEATURE_WEBVIEW)
+            unavailableReason = "feature=$hasFeature " + failures.joinToString(" / ")
+            Log.w(TAG, "WebView を生成できません: $unavailableReason")
+            return null
+        }
         view.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -179,6 +205,9 @@ class PlayerController(
 
     private companion object {
         const val TAG = "WearTubePlayer"
+
+        /** エラー画面に出す理由の長さ上限（小さい画面に収めるため）。 */
+        const val REASON_LENGTH = 120
         const val PLAYER_HTML = "player.html"
         const val BASE_URL = "https://www.youtube.com"
     }

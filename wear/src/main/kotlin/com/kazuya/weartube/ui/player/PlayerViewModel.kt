@@ -36,6 +36,8 @@ data class PlayerUiState(
     val isFavorite: Boolean = false,
     val output: AudioOutput = AudioOutput.SPEAKER,
     val error: PlayerError? = null,
+    /** エラーの内訳（WebView を生成できなかった理由など）。実機で原因を追うためエラー画面に小さく出す。 */
+    val errorDetail: String? = null,
     /** BT 未接続かつメディア音量 0 のとき、再生開始から数秒だけ true。 */
     val volumeWarning: Boolean = false,
 ) {
@@ -80,6 +82,7 @@ class PlayerViewModel(
                 isFavorite = item != null && favorites.any { it.videoId == item.videoId },
                 output = output,
                 error = err ?: player.errorCode?.let { toError(it) },
+                errorDetail = if (err == PlayerError.NO_WEBVIEW) controller.unavailableReason else null,
                 volumeWarning = warning,
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), PlayerUiState())

@@ -62,6 +62,7 @@ import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
 import androidx.wear.tooling.preview.devices.WearDevices
+import com.kazuya.weartube.BuildConfig
 import com.kazuya.weartube.R
 import com.kazuya.weartube.audio.AudioOutput
 import com.kazuya.weartube.data.VideoItem
@@ -204,7 +205,9 @@ private fun PlayerContent(
             )
         }
 
-        state.error?.let { ErrorView(error = it, onRetry = callbacks.onRetry, onBack = callbacks.onBack) }
+        state.error?.let {
+            ErrorView(error = it, detail = state.errorDetail, onRetry = callbacks.onRetry, onBack = callbacks.onBack)
+        }
     }
 }
 
@@ -382,6 +385,7 @@ private fun RoundButton(
 @Composable
 private fun BoxScope.ErrorView(
     error: PlayerError,
+    detail: String?,
     onRetry: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -405,6 +409,18 @@ private fun BoxScope.ErrorView(
             textAlign = TextAlign.Center,
             maxLines = 3,
         )
+        if (detail != null) {
+            // 実機でしか再現しないので、原因をそのまま出して写真で確認できるようにする
+            Text(
+                text = "${BuildConfig.VERSION_NAME} $detail",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White.copy(alpha = DETAIL_ALPHA),
+                textAlign = TextAlign.Center,
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
         Row(modifier = Modifier.padding(top = 8.dp)) {
             if (error == PlayerError.OFFLINE || error == PlayerError.LOAD_FAILED) {
                 Button(
@@ -436,6 +452,7 @@ private const val CENTER_BUTTON_RATIO = 0.21f
 private const val SIDE_BUTTON_RATIO = 0.15f
 private const val BUTTON_BACKGROUND_ALPHA = 0.35f
 private const val DISABLED_ALPHA = 0.3f
+private const val DETAIL_ALPHA = 0.6f
 private val MIN_TOUCH = 48.dp
 private val TITLE_OFFSET = 20.dp
 private val SEEKBAR_OFFSET = 12.dp
