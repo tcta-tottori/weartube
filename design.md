@@ -1,0 +1,283 @@
+# WearTube 設計書
+
+Pixel Watch（Wear OS）向け 個人利用専用 YouTube 再生アプリ
+
+> 2026-09-15 改訂: 初版の矛盾（±15 秒と前後動画、ライブ時の非表示対象、リューズの割当）を統一し、
+> Wear OS の WebView 可用性リスク、ライブ判定方法、API キーの渡し方、URL 入力再生を追記した。変更点は 9 章。
+
+---
+
+## 1. 目的とスコープ
+
+| 項目 | 内容 |
+|---|---|
+| 目的 | Pixel Watch 単体で YouTube 動画を再生する |
+| 構成 | **モードA（ウォッチ単体再生）のみ**。スマホ側アプリは作らない |
+| 利用形態 | 個人利用のみ。Play ストア配信はしない（adb サイドロード） |
+| 端末 | Pixel Watch（Wear OS 4 以降） |
+| 開発環境 | Android Studio / Kotlin / Compose for Wear OS（Material3） |
+
+### 非目標（やらないこと）
+
+- 動画・音声ファイルのダウンロードおよび保存
+- ストリーム URL の抽出（yt-dlp / NewPipeExtractor 系ライブラリの利用）
+- 広告のブロック・スキップ
+- スマホ連携（Data Layer）、スマホ側コンパニオンアプリ
+- 一般公開・配布
+
+> **規約上の前提**：再生は必ず YouTube 公式の IFrame Player を通して行う。上記の非目標は YouTube 利用規約違反にあたるため、個人利用でも実装しない。
+
+---
+
+## 2. 音声出力
+
+### 2.1 出力先は2つのみ
+
+Bluetooth オーディオの接続元は1台なので、**スマホにペアリング済みのイヤホンはウォッチの出力先として使えない**。モードA構成での出力先は次の2つに限られる。
+
+| 出力先 | 条件 |
+|---|---|
+| ウォッチ本体スピーカー | 常時利用可 |
+| BT イヤホン | **ウォッチに直接ペアリング**済みであること。マルチポイント対応機なら、スマホと繋いだまま切り替えて使える |
+
+### 2.2 実装方針
+
+- 出力デバイスは `AudioManager.getDevices(GET_DEVICES_OUTPUTS)` で検出し、`TYPE_BLUETOOTH_A2DP`（または `TYPE_BLE_HEADSET`）があればそちらを既定にする。
+- 出力先の明示的な切替 UI は置かず、**接続状態に追従する**（BT 接続中は自動でイヤホン、切断でスピーカー）。`AudioDeviceCallback` で変化を追い、現在の出力先はプレーヤーのオーバーレイにアイコンで表示するのみ。
+- BT 未接続かつメディア音量 0 の場合は、再生開始時に1行で警告を出す（3 秒で消える。再生は止めない）。
+- 再生開始時に `AudioManager.requestAudioFocus(AUDIOFOCUS_GAIN)` を取得し、フォーカス喪失（一時的なものを含む）で一時停止する。自動再開はしない。
+
+---
+
+## 3. 機能要件
+
+### MVP
+
+| # | 機能 | 内容 |
+|---|---|---|
+| F-01 | お気に入り一覧 | 登録済み動画をリスト表示。タップで再生。長押しで削除 |
+| F-02 | 音声検索 | ウォッチの音声入力 → YouTube Data API v3 で検索 → 結果リスト |
+| F-03 | 再生 | WebView + IFrame Player API。再生/一時停止/前後の動画/シーク/音量 |
+| F-04 | お気に入り登録 | 検索結果（長押し）・再生中の動画（オーバーレイの★）を保存／削除 |
+| F-05 | URL・ID 入力再生 | キーボード入力した YouTube URL または動画 ID を単独再生。API キーが無くても動く補助経路 |
+
+### 将来拡張（MVP 後）
+
+- 再生履歴、再生位置の記憶
+- タイル／コンプリケーションからの即再生
+- 回転リューズの割当切替（音量 ⇔ シーク）。MVP ではリューズは音量固定
+
+---
+
+## 4. 画面設計
+
+Pixel Watch は円形（41mm: 384×384px / 45mm: 450×450px）。dp 基準でレイアウトし、円の外周で見切れる前提で組む。
+
+### 4.1 画面遷移
+
+```
+[ホーム]
+ ├─ 🎤 音声で検索（先頭の固定チップ。API キー未設定なら無効）
+ ├─ お気に入り一覧（ScalingLazyColumn）
+ ├─ 🔗 URL・IDで再生
+ └─ ⚙ 設定（APIキー）
+       ↓ タップ
+[検索結果] → [プレーヤー]
+```
+
+### 4.2 プレーヤー画面（本アプリの中心）
+
+全面黒背景に動画を画面幅いっぱいで中央配置する。コントロールは常時表示せず、オーバーレイで出し入れする。
+
+#### 通常時（コントロール非表示）
+
+```
+┌───────────────────────┐
+│           10:09               │  ← システムの時刻表示は残す
+│ ╭───────────────────╮ │
+│ │                           │ │
+│ │      動画（16:9）           │ │  ← 幅100%、角丸12dp
+│ │                           │ │     左右は円形画面で切れる
+│ ╰───────────────────╯ │
+│                               │
+└───────────────────────┘
+```
+
+| 項目 | 値 |
+|---|---|
+| 背景色 | `#000000`（全面。AMOLED の消灯画素を活かす） |
+| 動画幅 | 画面幅の 100%（左右マージン 0） |
+| 動画高さ | 幅 × 9/16 |
+| 配置 | 垂直中央 |
+| 角丸 | 12dp |
+| 時刻表示 | 残す（没入表示にしない） |
+
+#### 操作時（コントロール表示）
+
+```
+┌───────────────────────┐
+│           10:09               │
+│    スイス・アルプスの絶景 │ 4K …  │  ← タイトル1行・中央・省略記号
+│ ╭───────────────────╮ │
+│ │   ⬤       ⬤⬤       ⬤    │ │  ← 半透明の円ボタン3つ
+│ │  ⏮        ▶/⏸       ⏭    │ │
+│ │                           │ │
+│ │ ━━━━●━━━━━━━━━ │ │  ← シークバー（動画下部に重ねる）
+│ ╰───────────────────╯ │
+│    🔊 03:21 / 12:34 ☆        │  ← 動画外の黒帯に中央揃え
+└───────────────────────┘
+```
+
+| 要素 | 仕様 |
+|---|---|
+| 全面スクリム | **敷かない**。動画はそのままの明るさを保つ |
+| ボタン背景 | 白 35% の円。アイコンは白・不透明 |
+| 中央ボタン径 | 画面幅の約 21% |
+| 左右ボタン径 | 画面幅の約 15%（中央の約 0.7 倍）。タップ領域は 48dp を確保する |
+| ボタン水平位置 | 画面幅の 22% / 50% / 78% |
+| ボタン垂直位置 | 画面の垂直中央 |
+| タイトル | 動画上端の黒帯。中央揃え・1行・末尾省略。白 |
+| シークバー | 動画の下端付近に重ねる。左右マージン 8%。進捗＝青、残り＝白 40%、ノブ＝白の円（径 14dp） |
+| 時間表示 | `経過 / 全体`。シークバー下、動画外の黒帯に中央揃え。左に出力先アイコン（🔊 / BT）、右にお気に入り ★ |
+
+#### 操作
+
+| 操作 | 割当 |
+|---|---|
+| 画面タップ | コントロールの表示／非表示 |
+| 中央 ▶/⏸ | 再生・一時停止（終了後は先頭から再生） |
+| ⏮ / ⏭ | 再生元リスト内の前／次の動画。動画終了時は自動で次へ |
+| シークバー | タップ／ドラッグでシーク（ライブ配信時は非表示） |
+| ★ | お気に入りの登録／解除 |
+| 回転リューズ | メディア音量（時計回りで上げる） |
+| 右スワイプ | 前画面へ戻る（Wear OS 標準） |
+
+- コントロールは既定で**非表示**。画面タップでトグルし、**3秒無操作で自動フェードアウト**（200ms）。
+- リストの先頭／末尾では該当する ⏮ ／ ⏭ を 30% 不透明にして無効表示にする。
+- ライブ配信ではシークバーと時間表示を出さず、時間の位置に「ライブ」と表示する。
+
+### 4.3 一覧（ホーム・検索結果）
+
+- 1 行 = サムネイル（16:9、幅 56dp）+ タイトル 2 行 + チャンネル名。ライブは「LIVE」を赤で表示。
+- タップで再生（その一覧が再生元リストになる）。長押しでお気に入りの登録／解除（Toast で 1 行通知）。
+- 検索画面は開いた直後に音声入力を起動する。「もう一度」で再入力。
+
+---
+
+## 5. アーキテクチャ
+
+### 5.1 モジュール構成
+
+```
+weartube/
+└── app/                    Wear OS アプリ（単一モジュール）
+    └── src/main/
+        ├── kotlin/com/kazuya/weartube/
+        │   ├── ui/         Compose 画面（home / search / player / settings / navigation / common）
+        │   ├── player/     WebView ラッパー（PlayerController）、JS ブリッジ（PlayerBridge）
+        │   ├── audio/      出力デバイス検出、オーディオフォーカス、リューズ音量
+        │   ├── data/       DataStore、YouTube Data API クライアント、再生キュー
+        │   ├── net/        ネットワーク接続の確認
+        │   ├── AppContainer.kt   手動 DI
+        │   └── MainActivity.kt
+        └── assets/player.html
+```
+
+### 5.2 技術スタック
+
+| レイヤ | 採用 |
+|---|---|
+| 言語 | Kotlin 2.4 |
+| UI | Compose for Wear OS Material3（`androidx.wear.compose:compose-material3`）+ `compose-navigation` |
+| 再生 | WebView + YouTube IFrame Player API |
+| 検索 | YouTube Data API v3（Retrofit + kotlinx.serialization） |
+| サムネイル | Coil 3 |
+| 永続化 | DataStore（Preferences） |
+| DI | 手動 DI（`AppContainer`。規模的に Hilt 不要） |
+| ビルド | AGP 9.1 / Gradle 9.5 / JDK 17。TimTra と同じ構成で GitHub Actions がビルド |
+| minSdk / targetSdk / compileSdk | 30 / 35 / 36 |
+
+### 5.3 再生方式
+
+`assets/player.html` に IFrame Player を置き、`loadDataWithBaseURL("https://www.youtube.com", ...)` で読み込む（origin 検証を通すため必須）。
+
+WebView 必須設定：
+
+```kotlin
+settings.javaScriptEnabled = true
+settings.domStorageEnabled = true
+settings.mediaPlaybackRequiresUserGesture = false   // 自動再生に必要
+```
+
+プレーヤーパラメータ：`playsinline=1`, `enablejsapi=1`, `controls=0`, `rel=0`, `fs=0`
+
+- `controls=0` にして、操作は 4.2 の自前オーバーレイに寄せる（純正コントロールはウォッチ画面では小さすぎる）。
+- Kotlin → JS は `evaluateJavascript("playVideo()")` 等、player.html 側に置いた関数を呼ぶ（`loadVideo` / `playVideo` / `pauseVideo` / `seekTo` / `stopVideo`）。
+- JS → Kotlin は `@JavascriptInterface`（`window.Android`）で `onApiReady` / `onStateChange(state, title, duration)` / `onTime`（250ms 間隔）/ `onError(code)` を受け取る。
+- HTML 側は `body{margin:0;background:#000}` とし、プレーヤーを `width:100%; aspect-ratio:16/9` で配置。ネイティブ側の黒背景と継ぎ目なく見えるようにする。
+- WebView は Application Context で生成して ViewModel が持ち、画面を離れたら `destroy()` する。WebView へのタッチは通さず（`setOnTouchListener` で消費）、Compose 側の透明レイヤーでタップを受ける。
+- **WebView の有無を起動時に確認する**。`WebView.getCurrentWebViewPackage()` が null、または生成で例外なら「この端末には WebView がなく再生できません」と表示する（7 章）。
+- ライブ判定は IFrame API の `getDuration()` では行わない（ライブ時は経過時間を返す）。Data API の `liveBroadcastContent == "live"` を `VideoItem.isLive` に持たせて使う。
+- 検索は `type=video&videoEmbeddable=true&videoSyndicated=true` で、IFrame で再生できない動画を最初から除く。
+
+---
+
+## 6. データ設計（DataStore）
+
+| キー | 型 | 用途 |
+|---|---|---|
+| `favorites` | JSON 文字列 | `[{videoId, title, channelTitle, thumbnailUrl, isLive, addedAt}]`（新しい順） |
+| `youtube_api_key` | String | 設定画面から入れたキー。空なら BuildConfig のキーを使う |
+| `last_position` | JSON 文字列 | `{videoId: seconds}`（将来拡張用。未実装） |
+
+APIキーはソースにハードコードせず、次の順で解決する。
+
+1. 設定画面で入力したキー（DataStore）
+2. `BuildConfig.YOUTUBE_API_KEY` — `local.properties` の `YOUTUBE_API_KEY`、または CI の環境変数 `YOUTUBE_API_KEY`（GitHub Actions の secret）から注入
+
+ウォッチで 39 文字のキーを打つのは現実的でないため、**CI の secret に入れる運用を推奨**する。`local.properties` は `.gitignore` 済み。
+
+---
+
+## 7. 非機能要件・既知の制約
+
+| 項目 | 内容・対策 |
+|---|---|
+| **WebView の可用性** | Wear OS の公式ドキュメントは `android.webkit` を非対応 API に挙げている。Pixel Watch に Android System WebView が入っているかは**実機で確認する**まで分からない（入っていなければこの設計自体が成立しない）。アプリは起動時に有無を確認し、無ければ明示エラーを出す |
+| 電池 | WebView + 画面点灯で消費が大きい。長時間視聴には向かない前提。設定画面に注意書きを置く |
+| 画面消灯 | 画面が消えると再生が止まる。再生中は `FLAG_KEEP_SCREEN_ON` を立て、アンビエントモードには入らない。バックグラウンド音声のみ再生は成立しないと割り切る |
+| 描画性能 | ウォッチの WebView は重く、コマ落ちする前提。画質は自動に任せ `vq` 指定はしない |
+| 通信 | LTE モデルまたはウォッチの Wi-Fi 接続が必要。接続確認は `NET_CAPABILITY_INTERNET` + `VALIDATED` で行う（スマホ経由の BT プロキシも通るが、動画には帯域不足） |
+| APIクォータ | Data API v3 の検索は 1回 100 units（無料枠 10,000/日）。検索中は再検索を受け付けず、`quotaExceeded` を受けたらアプリ再起動まで検索を止める |
+| ライブ配信 | 再生可だがシーク不可。シークバーと時間表示を非表示にする |
+| 年齢制限・埋め込み不可動画 | IFrame では再生できない（onError 101/150 等）。「この動画はウォッチで再生できません」と表示し、戻れるようにする |
+| 音声入力 | `RecognizerIntent.ACTION_RECOGNIZE_SPEECH` を使う。応答するアプリが無い端末では「音声入力が使えません」と表示 |
+
+---
+
+## 8. 開発ステップ
+
+1. **Step 1**：アプリの骨組み（Compose、ホーム画面、DataStore）
+2. **Step 2**：再生（WebView + IFrame、再生/停止のみ）
+3. **Step 3**：プレーヤー UI の作り込み（全面黒＋16:9＋自動フェードのオーバーレイ、シークバーの表示）
+4. **Step 4**：出力デバイス検出、オーディオフォーカス、音量操作
+5. **Step 5**：YouTube Data API 検索、お気に入り登録
+6. **Step 6**：シーク動作・エラーハンドリング・実機での電池確認
+
+各 Step の終わりに実機（adb over Wi-Fi）へインストールして動作確認する。
+この環境では Android SDK を取得できないため、ビルドは GitHub Actions（`.github/workflows/build-apk.yml`）で行い、
+プレリリース `dev` の APK を時計に入れて確認する。
+
+---
+
+## 9. 初版からの変更点
+
+| 箇所 | 初版 | 改訂 | 理由 |
+|---|---|---|---|
+| F-03 | 「±15秒」 | 「前後の動画／シーク」 | 4.2 では ⏮/⏭ を前後の動画と定義しており矛盾していた |
+| 7 章 ライブ配信 | 「±15秒ボタンとシークバーを非表示」 | 「シークバーと時間表示を非表示」 | ±15秒ボタンは存在しない |
+| 3 章 将来拡張 | 「回転リューズでのシーク」 | 「リューズ割当の切替」 | 4.2 でリューズは音量に確定している |
+| 5.3 | — | WebView 有無の確認、ライブ判定、`videoEmbeddable` | Wear OS の WebView 非搭載リスク、IFrame API の仕様 |
+| 6 章 | — | キー解決順と CI secret | ウォッチでのキー入力が現実的でない |
+| 3 章 F-05 | — | URL・ID 入力再生 | API キー無しでも再生経路を確保する |
+| 4.2 | — | ★ と出力先アイコンの位置、終了時の自動次送り | F-04「再生中の動画を保存」の置き場が未定だった |

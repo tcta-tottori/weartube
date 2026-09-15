@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden; }
+  /* ネイティブ側が WebView を 16:9 に切っているので、ここでは全面に広げるだけ */
+  #player { width: 100%; height: 100%; aspect-ratio: 16 / 9; border: 0; display: block; background: #000; }
+</style>
+</head>
+<body>
+<div id="player"></div>
+<script>
+  // Kotlin 側（PlayerBridge）へ通知する。Android が無い環境（ブラウザで開いたとき）でも落ちないようにする。
+  var bridge = window.Android || { onApiReady: function () {}, onStateChange: function () {}, onTime: function () {}, onError: function () {} };
+  var player = null;
+  var pendingVideoId = null;
+
+  function videoTitle() {
+    try { return (player.getVideoData() || {}).title || ''; } catch (e) { return ''; }
+  }
+
+  function onYouTubeIframeAPIReady() {
+    player = new YT.Player('player', {
+      width: '100%',
+      height: '100%',
+      playerVars: {
+        playsinline: 1,
+        enablejsapi: 1,
+        controls: 0,
+        rel: 0,
+        fs: 0,
+        modestbranding: 1,
+        origin: 'https://www.youtube.com'
+      },
+      events: {
+        onReady: function () {
+          bridge.onApiReady();
+          if (pendingVideoId) { var id = pendingVideoId; pendingVideoId = null; loadVideo(id); }
+        },
+        onStateChange: function (e) {
+          bridge.onStateChange(e.data, videoTitle(), player.getDuration() || 0);
+        },
+        onError: function (e) {
+          bridge.onError(e.data);
+        }
+      }
+    });
+  }
+
+  // ---- Kotlin から evaluateJavascript で呼ぶ関数 ----
+  function loadVideo(id) {
+    if (!player || !player.loadVideoById) { pendingVideoId = id; return; }
+    player.loadVideoById(id);
+  }
+  function playVideo() { if (player && player.playVideo) player.playVideo(); }
+  function pauseVideo() { if (player && player.pauseVideo) player.pauseVideo(); }
+  function seekTo(sec) { if (player && player.seekTo) player.seekTo(sec, true); }
+  function stopVideo() { if (player && player.stopVideo) player.stopVideo(); }
+
+  // 250ms ごとに再生位置を送る（design.md 5.3）
+  setInterval(function () {
+    if (!player || !player.getCurrentTime) return;
+    try { bridge.onTime(player.getCurrentTime() || 0, player.getDuration() || 0); } catch (e) {}
+  }, 250);
+
+  var tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  tag.onerror = function () { bridge.onError(-1); };
+  document.head.appendChild(tag);
+</script>
+</body>
+</html>
