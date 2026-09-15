@@ -29,5 +29,9 @@ dependencyResolutionManagement {
 
 rootProject.name = "weartube"
 
-// 単一モジュール構成（design.md 5.1）。mobile / shared モジュールは作らない。
-include(":app")
+// shared : お気に入り・API キーの DataStore、YouTube Data API、Data Layer 同期（wear と mobile で共有）
+// wear   : Wear OS アプリ（再生はすべてここで完結する）
+// mobile : スマホの設定アプリ（API キー入力、お気に入り管理、時計への同期）
+include(":shared")
+include(":wear")
+include(":mobile")

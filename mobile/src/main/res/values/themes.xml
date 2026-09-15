@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 画面はすべて Compose。ここは Activity の土台となる最小限のテーマだけ。 -->
+    <style name="Theme.WearTube" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
+</resources>

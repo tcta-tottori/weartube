@@ -4,6 +4,7 @@ Pixel Watch（Wear OS）向け 個人利用専用 YouTube 再生アプリ
 
 > 2026-09-15 改訂: 初版の矛盾（±15 秒と前後動画、ライブ時の非表示対象、リューズの割当）を統一し、
 > Wear OS の WebView 可用性リスク、ライブ判定方法、API キーの渡し方、URL 入力再生を追記した。変更点は 9 章。
+> 同日 2 版: スマホの設定アプリ（API キーとお気に入りを Data Layer で時計に同期）を追加した。10 章。
 
 ---
 
@@ -12,7 +13,7 @@ Pixel Watch（Wear OS）向け 個人利用専用 YouTube 再生アプリ
 | 項目 | 内容 |
 |---|---|
 | 目的 | Pixel Watch 単体で YouTube 動画を再生する |
-| 構成 | **モードA（ウォッチ単体再生）のみ**。スマホ側アプリは作らない |
+| 構成 | **再生はウォッチ単体**。スマホ側は設定アプリのみ（API キー・お気に入りの入力と時計への同期。10 章） |
 | 利用形態 | 個人利用のみ。Play ストア配信はしない（adb サイドロード） |
 | 端末 | Pixel Watch（Wear OS 4 以降） |
 | 開発環境 | Android Studio / Kotlin / Compose for Wear OS（Material3） |
@@ -22,7 +23,7 @@ Pixel Watch（Wear OS）向け 個人利用専用 YouTube 再生アプリ
 - 動画・音声ファイルのダウンロードおよび保存
 - ストリーム URL の抽出（yt-dlp / NewPipeExtractor 系ライブラリの利用）
 - 広告のブロック・スキップ
-- スマホ連携（Data Layer）、スマホ側コンパニオンアプリ
+- スマホでの再生、スマホから時計への映像・音声の転送
 - 一般公開・配布
 
 > **規約上の前提**：再生は必ず YouTube 公式の IFrame Player を通して行う。上記の非目標は YouTube 利用規約違反にあたるため、個人利用でも実装しない。
@@ -60,6 +61,7 @@ Bluetooth オーディオの接続元は1台なので、**スマホにペアリ�
 | F-03 | 再生 | WebView + IFrame Player API。再生/一時停止/前後の動画/シーク/音量 |
 | F-04 | お気に入り登録 | 検索結果（長押し）・再生中の動画（オーバーレイの★）を保存／削除 |
 | F-05 | URL・ID 入力再生 | キーボード入力した YouTube URL または動画 ID を単独再生。API キーが無くても動く補助経路 |
+| F-06 | スマホ設定アプリ | API キーの入力、お気に入りの追加（YouTube アプリの共有・URL 貼り付け）と削除を行い、時計に同期する（10 章） |
 
 ### 将来拡張（MVP 後）
 
@@ -170,17 +172,27 @@ Pixel Watch は円形（41mm: 384×384px / 45mm: 450×450px）。dp 基準でレ
 
 ```
 weartube/
-└── app/                    Wear OS アプリ（単一モジュール）
-    └── src/main/
-        ├── kotlin/com/kazuya/weartube/
-        │   ├── ui/         Compose 画面（home / search / player / settings / navigation / common）
-        │   ├── player/     WebView ラッパー（PlayerController）、JS ブリッジ（PlayerBridge）
-        │   ├── audio/      出力デバイス検出、オーディオフォーカス、リューズ音量
-        │   ├── data/       DataStore、YouTube Data API クライアント、再生キュー
-        │   ├── net/        ネットワーク接続の確認
-        │   ├── AppContainer.kt   手動 DI
-        │   └── MainActivity.kt
-        └── assets/player.html
+├── shared/                 Android ライブラリ（wear と mobile で共有）
+│   └── kotlin/com/kazuya/weartube/
+│       ├── data/           VideoItem、DataStore（お気に入り・API キー）、YouTube Data API クライアント
+│       └── sync/           Data Layer 同期（SyncPayload、WearSync）
+├── wear/                   Wear OS アプリ（applicationId com.kazuya.weartube）
+│   └── src/main/
+│       ├── kotlin/com/kazuya/weartube/
+│       │   ├── ui/         Compose 画面（home / search / player / settings / navigation / common）
+│       │   ├── player/     WebView ラッパー（PlayerController）、JS ブリッジ（PlayerBridge）
+│       │   ├── audio/      出力デバイス検出、オーディオフォーカス、リューズ音量
+│       │   ├── data/       再生キュー
+│       │   ├── net/        ネットワーク接続の確認
+│       │   ├── sync/       スマホからの受信サービス
+│       │   ├── AppContainer.kt   手動 DI
+│       │   └── MainActivity.kt
+│       └── assets/player.html
+└── mobile/                 スマホの設定アプリ（同じ applicationId・同じ署名）
+    └── kotlin/com/kazuya/weartube/mobile/
+        ├── ui/             設定画面（API キー、同期状態、お気に入り）
+        ├── sync/           時計からの受信サービス
+        └── MainActivity.kt 共有インテント（ACTION_SEND）の受け口
 ```
 
 ### 5.2 技術スタック
@@ -193,6 +205,8 @@ weartube/
 | 検索 | YouTube Data API v3（Retrofit + kotlinx.serialization） |
 | サムネイル | Coil 3 |
 | 永続化 | DataStore（Preferences） |
+| スマホ ⇔ 時計 | Wearable Data Layer API（play-services-wearable）。設定とお気に入りのみ |
+| スマホ UI | Jetpack Compose Material3（1 画面） |
 | DI | 手動 DI（`AppContainer`。規模的に Hilt 不要） |
 | ビルド | AGP 9.1 / Gradle 9.5 / JDK 17。TimTra と同じ構成で GitHub Actions がビルド |
 | minSdk / targetSdk / compileSdk | 30 / 35 / 37 |
@@ -229,13 +243,16 @@ settings.mediaPlaybackRequiresUserGesture = false   // 自動再生に必要
 | `favorites` | JSON 文字列 | `[{videoId, title, channelTitle, thumbnailUrl, isLive, addedAt}]`（新しい順） |
 | `youtube_api_key` | String | 設定画面から入れたキー。空なら BuildConfig のキーを使う |
 | `last_position` | JSON 文字列 | `{videoId: seconds}`（将来拡張用。未実装） |
+| `last_sync_at` | Long | スマホ ⇔ 時計で最後に同期した時刻（設定画面の表示用） |
+
+同じキー構成をスマホ側の DataStore にも持ち、10 章の同期で内容を揃える。
 
 APIキーはソースにハードコードせず、次の順で解決する。
 
-1. 設定画面で入力したキー（DataStore）
+1. 設定画面で入力したキー（DataStore）。**スマホの設定アプリで入れたキーはここに同期される**
 2. `BuildConfig.YOUTUBE_API_KEY` — `local.properties` の `YOUTUBE_API_KEY`、または CI の環境変数 `YOUTUBE_API_KEY`（GitHub Actions の secret）から注入
 
-ウォッチで 39 文字のキーを打つのは現実的でないため、**CI の secret に入れる運用を推奨**する。`local.properties` は `.gitignore` 済み。
+ウォッチで 39 文字のキーを打つのは現実的でないため、**スマホの設定アプリで貼り付ける**か、CI の secret に入れる。`local.properties` は `.gitignore` 済み。
 
 ---
 
@@ -281,3 +298,37 @@ APIキーはソースにハードコードせず、次の順で解決する。
 | 6 章 | — | キー解決順と CI secret | ウォッチでのキー入力が現実的でない |
 | 3 章 F-05 | — | URL・ID 入力再生 | API キー無しでも再生経路を確保する |
 | 4.2 | — | ★ と出力先アイコンの位置、終了時の自動次送り | F-04「再生中の動画を保存」の置き場が未定だった |
+| 1 章・10 章（2 版） | 「スマホ連携はしない」 | 設定アプリ + Data Layer 同期 | 時計での API キー入力・検索クォータの不便を解消する。再生は引き続き時計単体 |
+
+---
+
+## 10. スマホ設定アプリと同期
+
+### 10.1 役割
+
+| 端末 | 役割 |
+|---|---|
+| スマホ（`mobile`） | API キーの貼り付け、お気に入りの追加（YouTube アプリの共有 / URL 貼り付け）と削除、同期状態の表示 |
+| 時計（`wear`） | 再生。設定と URL 入力は残す（スマホが無くても動く） |
+
+スマホでは再生しない。映像・音声を時計へ送ることもしない。
+
+### 10.2 同期の仕組み（Wearable Data Layer）
+
+- 両アプリは **同じ applicationId（`com.kazuya.weartube`）と同じ署名鍵** でビルドする（Data Layer の通信条件）。
+- パスは方向ごとに分ける。`/weartube/from_phone`（スマホ → 時計）と `/weartube/from_wear`（時計 → スマホ）。
+- 内容は `SyncPayload` の JSON 1 本。`apiKey`（スマホ → 時計のみ。null は変更なし、空文字は削除）、`favorites`（一覧を丸ごと）、`sentAtEpochMillis`。
+- 受信側は **一覧を置き換える（後勝ち）**。`sentAtEpochMillis` が前回適用分より古い項目は捨てる。
+- DataStore は内容が同じなら書き込まず Flow も流れないので、受け取った内容をそのまま送り返してもループしない。
+- 送信タイミング: 起動時に相手の最新項目を取り込んだあと、自端末の変更を 500ms のデバウンスで送る。スマホには「今すぐ同期」ボタンも置く。
+- 受信は `WearableListenerService`（`DATA_CHANGED`、`pathPrefix="/weartube/"`）。アプリが起動していなくても届く。
+- 時計が Bluetooth で未接続のときは Play 開発者サービスが保留し、接続後に届く。
+
+### 10.3 スマホ画面
+
+1 画面のみ。上から「API キー」「時計との同期（接続状態・最終同期・今すぐ同期）」「お気に入り（URL 入力 + 一覧・削除）」。
+YouTube アプリの共有シートからこのアプリを選ぶと URL が `ACTION_SEND` で届き、動画 ID を取り出して Data API（videos.list、1 unit）でタイトル・サムネイルを補って追加する。キーが無ければ ID だけで追加し、タイトルは時計の再生時に補われる。
+
+### 10.4 アイコン
+
+赤地に白の再生マーク（添付画像）を時計・スマホ共通で使う。adaptive icon の前景に画像を全面で敷き、背景は画像の赤（`#DB1617`）。

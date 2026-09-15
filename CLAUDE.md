@@ -11,9 +11,10 @@ Pixel Watch（Wear OS 4+）向けの**個人利用専用** YouTube 再生アプ�
 Play ストア配信はせず、adb でサイドロードして使う。
 
 - 再生はすべて**ウォッチ単体**で行う（WebView + YouTube IFrame Player API）
-- **スマホ連携は実装しない**。Data Layer、コンパニオンアプリ、Wearable API は使わない
+- スマホ側は**設定アプリのみ**（API キー入力、お気に入り管理）。Wearable Data Layer で時計に同期する（design.md 10 章）。
+  スマホで再生したり、映像・音声を時計に送ったりはしない。時計はスマホ無しでも動くこと
 - 音声出力はウォッチ本体スピーカー、またはウォッチに直接ペアリングした BT イヤホン
-- パッケージ名: `com.kazuya.weartube`
+- applicationId は時計・スマホとも `com.kazuya.weartube`（Data Layer の条件）。namespace は `com.kazuya.weartube`（wear）/ `com.kazuya.weartube.mobile` / `com.kazuya.weartube.shared`
 
 ---
 
@@ -35,19 +36,24 @@ Play ストア配信はせず、adb でサイドロードして使う。
 
 ```
 weartube/
-└── app/src/main/
-    ├── kotlin/com/kazuya/weartube/
-    │   ├── ui/          Compose 画面（home / search / player / settings / navigation / common）
-    │   ├── player/      WebView ラッパー、JS ブリッジ
-    │   ├── audio/       出力デバイス検出、オーディオフォーカス、リューズ音量
-    │   ├── data/        DataStore、YouTube Data API クライアント、再生キュー
-    │   ├── net/         ネットワーク接続の確認
-    │   ├── AppContainer.kt
-    │   └── MainActivity.kt
-    └── assets/player.html
+├── shared/   Android ライブラリ。data/（VideoItem、DataStore、Data API）と sync/（SyncPayload、WearSync）
+├── wear/     Wear OS アプリ
+│   └── src/main/
+│       ├── kotlin/com/kazuya/weartube/
+│       │   ├── ui/          Compose 画面（home / search / player / settings / navigation / common）
+│       │   ├── player/      WebView ラッパー、JS ブリッジ
+│       │   ├── audio/       出力デバイス検出、オーディオフォーカス、リューズ音量
+│       │   ├── data/        再生キュー
+│       │   ├── net/         ネットワーク接続の確認
+│       │   ├── sync/        スマホからの受信サービス
+│       │   ├── AppContainer.kt
+│       │   └── MainActivity.kt
+│       └── assets/player.html
+└── mobile/   スマホの設定アプリ（ui/、sync/、MainActivity）
 ```
 
-単一モジュール構成。mobile / shared モジュールは作らない。
+- Kotlin パッケージは shared でも `com.kazuya.weartube.data` / `.sync` のまま（namespace とは別）
+- 時計だけで動く部分（player / audio / ui）を shared や mobile に寄せない
 
 ---
 
@@ -61,6 +67,15 @@ weartube/
 - ネットワークは Retrofit + kotlinx.serialization
 - 円形画面前提。リストは `ScalingLazyColumn`、タップ領域は最小 48dp
 - 画面は「`XxxScreen`（ViewModel を持つ）」と「`XxxContent`（状態と callback だけ受ける）」に分け、Content にプレビューを付ける
+- スマホ側は Jetpack Compose Material3。1 画面に収める
+
+### スマホ ⇔ 時計の同期（design.md 10 章）
+
+- 同期するのは **API キー（スマホ → 時計のみ）とお気に入り（双方向）** だけ。再生状態や動画は送らない
+- 送受信は `shared/sync/WearSync` に閉じ込める。パスは `SyncPaths.FROM_PHONE` / `FROM_WEAR`
+- 受信は一覧の丸ごと置き換え（後勝ち）。`sentAtEpochMillis` の古い項目は捨てる
+- 起動時に相手の最新を `applyLatest()` で取り込み、以後は変更を `drop(1)` + `debounce` で送る。取り込んだ直後に送り返さないこと
+- 両アプリは同じ `keystore/debug.keystore` で署名する。片方だけ鍵を変えない
 
 ### プレーヤー画面の UI 要件（最重要）
 
@@ -125,9 +140,9 @@ audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
 
 YouTube Data API v3 のキーは**ソースにハードコードしない**。
 
-- 解決順: 設定画面で入力したキー（DataStore）→ `BuildConfig.YOUTUBE_API_KEY`
-- `BuildConfig` には `local.properties` の `YOUTUBE_API_KEY`、または環境変数 `YOUTUBE_API_KEY`（GitHub Actions の secret）から注入する
-- ウォッチでの長いキー入力は現実的でないので、CI の secret に入れる運用を推奨する
+- 解決順: 設定画面で入力したキー（DataStore。スマホから同期されたキーもここ）→ `BuildConfig.YOUTUBE_API_KEY`
+- `BuildConfig` には `local.properties` の `YOUTUBE_API_KEY`、または環境変数 `YOUTUBE_API_KEY`（GitHub Actions の secret）から注入する（wear / mobile 両方）
+- ウォッチでの長いキー入力は現実的でないので、スマホの設定アプリで貼り付けるか、CI の secret に入れる
 - `local.properties` は `.gitignore` 済み
 - キーが無いときは検索を無効にし、お気に入りと URL・ID 入力からの再生だけ動くようにする
 
@@ -136,7 +151,7 @@ YouTube Data API v3 のキーは**ソースにハードコードしない**。
 ## ビルドとインストール
 
 この作業環境からは Google の Maven / SDK に届かないため、ビルドは GitHub Actions（`.github/workflows/build-apk.yml`）で行う。
-`claude/**` ブランチへの push で自動ビルドされ、プレリリース `dev` に `weartube-wear-debug.apk` が置かれる。
+`claude/**` ブランチへの push で自動ビルドされ、プレリリース `dev` に `weartube-wear-debug.apk`（時計）と `weartube-phone-debug.apk`（スマホ）が置かれる。
 
 ```bash
 # ウォッチを開発者モード + ADB debugging + Wi-Fi 経由デバッグに設定してから
@@ -148,15 +163,17 @@ adb install -r weartube-wear-debug.apk
 adb logcat | grep -i weartube
 ```
 
+- スマホは `weartube-phone-debug.apk` をダウンロードして開くだけでよい
 - 署名鍵は `keystore/debug.keystore` に固定（`keystore/README.md`）。上書きインストールできる
-- ローカルに Android SDK があれば `./gradlew :app:installDebug` でも入る
+- ローカルに Android SDK があれば `./gradlew :wear:installDebug` / `:mobile:installDebug` でも入る
 - エミュレータ（Wear OS API 34, round 454×454）でも UI 確認はできるが、**WebView の有無・音声出力・描画性能は実機でしか検証できない**。これらに関わる変更は「実機確認が必要」と明示して報告すること
 
 ### 作業報告のルール
 
 - push して Build APK ワークフローが成功したら、毎回インストール先の URL を報告する
   - リリースページ: https://github.com/tcta-tottori/weartube/releases/tag/dev
-  - APK 直リンク: https://github.com/tcta-tottori/weartube/releases/download/dev/weartube-wear-debug.apk
+  - 時計用 APK 直リンク: https://github.com/tcta-tottori/weartube/releases/download/dev/weartube-wear-debug.apk
+  - スマホ用 APK 直リンク: https://github.com/tcta-tottori/weartube/releases/download/dev/weartube-phone-debug.apk
 - 併せてビルド番号（versionName 0.1.<実行番号>）を添え、設定画面で確認できるようにする
 
 ---

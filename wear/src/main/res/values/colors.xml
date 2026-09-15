@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ランチャーアイコンの背景。添付画像の赤から採取 -->
+    <color name="ic_launcher_background">#FFDB1617</color>
+</resources>

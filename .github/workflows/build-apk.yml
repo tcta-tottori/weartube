@@ -47,17 +47,18 @@ jobs:
       - name: ktlint
         run: ./gradlew ktlintCheck
 
-      - name: Wear OS APK
-        # YouTube Data API のキーはリポジトリの secret から BuildConfig に入れる（無ければ空＝設定画面で入力）
+      - name: Wear OS APK と スマホ APK
+        # YouTube Data API のキーはリポジトリの secret から BuildConfig に入れる（無ければ空＝スマホ／時計の設定画面で入力）
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-        run: ./gradlew :app:assembleDebug
+        run: ./gradlew :wear:assembleDebug :mobile:assembleDebug
 
       - name: APK をまとめる
         if: success()
         run: |
           mkdir -p artifacts
-          cp app/build/outputs/apk/debug/app-debug.apk artifacts/weartube-wear-debug.apk
+          cp wear/build/outputs/apk/debug/wear-debug.apk artifacts/weartube-wear-debug.apk
+          cp mobile/build/outputs/apk/debug/mobile-debug.apk artifacts/weartube-phone-debug.apk
           ls -la artifacts
 
       - name: APK をアップロード
@@ -83,8 +84,10 @@ jobs:
             --notes "コミット ${GITHUB_SHA} の debug ビルド。ビルド番号 ${GITHUB_RUN_NUMBER}。
 
           - weartube-wear-debug.apk — Wear OS（Pixel Watch）用
+          - weartube-phone-debug.apk — スマホの設定アプリ（API キー・お気に入りを時計に同期。同じ debug 署名）
 
-          インストール: 時計の開発者向けオプションで ADB デバッグと無線デバッグを有効にし、
+          インストール: スマホは weartube-phone-debug.apk をダウンロードして開く。
+          時計は開発者向けオプションで ADB デバッグと無線デバッグを有効にし、
           adb pair / adb connect で時計につないでから adb install -r weartube-wear-debug.apk を実行する。"
 
       - name: レポートをアップロード（失敗時）
@@ -93,5 +96,5 @@ jobs:
         with:
           name: reports
           path: |
-            app/build/reports/**
+            */build/reports/**
           retention-days: 7

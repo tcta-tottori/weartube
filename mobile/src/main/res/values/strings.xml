@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WearTube 設定</string>
+
+    <string name="title">WearTube 設定</string>
+    <string name="intro">ここで入れた API キーとお気に入りは、ペアリング中の Pixel Watch に自動で同期されます。再生は時計だけで行います。</string>
+
+    <!-- API キー -->
+    <string name="api_key_title">YouTube Data API キー</string>
+    <string name="api_key_hint">検索に使うキー（Google Cloud で発行）</string>
+    <string name="api_key_label">API キー</string>
+    <string name="api_key_save">保存</string>
+    <string name="api_key_clear">消す</string>
+    <string name="api_key_set">設定済み（末尾 %1$s）。時計にも同期します</string>
+    <string name="api_key_build">ビルド時のキーを使用中。上書きする場合はここに入力</string>
+    <string name="api_key_unset">未設定。時計の音声検索は使えません（お気に入りの再生はできます）</string>
+    <string name="api_key_saved">API キーを保存しました</string>
+
+    <!-- 同期 -->
+    <string name="sync_title">時計との同期</string>
+    <string name="sync_connected">時計: 接続中</string>
+    <string name="sync_disconnected">時計: 未接続（接続後に同期されます）</string>
+    <string name="sync_last">最終同期 %1$s</string>
+    <string name="sync_never">まだ同期していません</string>
+    <string name="sync_now">今すぐ同期</string>
+    <string name="sync_done">時計に送りました</string>
+    <string name="sync_failed">送信できませんでした。時計の接続を確認してください</string>
+
+    <!-- お気に入り -->
+    <string name="favorites_title">お気に入り（%1$d 件）</string>
+    <string name="favorites_hint">YouTube アプリの「共有」からこのアプリを選ぶか、URL を貼り付けて追加</string>
+    <string name="favorites_url_label">YouTube の URL または動画 ID</string>
+    <string name="favorites_add">追加</string>
+    <string name="favorites_empty">お気に入りはまだありません</string>
+    <string name="favorites_delete">削除</string>
+    <string name="favorite_added">お気に入りに追加しました</string>
+    <string name="favorite_exists">すでに登録されています</string>
+    <string name="favorite_removed">削除しました</string>
+    <string name="video_id_invalid">動画 ID を読み取れません</string>
+    <string name="live">LIVE</string>
+
+    <string name="version">バージョン %1$s</string>
+</resources>
