@@ -51,7 +51,7 @@ adb logcat | grep -i weartube
 ./gradlew :app:assembleDebug     # Wear OS APK
 ```
 
-Android Studio で開く場合は AGP 9.1 / Gradle 9.5 / compileSdk 36 に対応した版を使う。
+Android Studio で開く場合は AGP 9.1 / Gradle 9.5 / compileSdk 37 に対応した版を使う。
 
 ## 構成
 

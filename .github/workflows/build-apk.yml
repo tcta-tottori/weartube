@@ -37,7 +37,7 @@ jobs:
 
       - name: 必要な SDK を入れる
         run: |
-          for p in "platforms;android-36" "build-tools;36.0.0" "build-tools;35.0.0"; do
+          for p in "platforms;android-37" "platforms;android-36" "build-tools;36.0.0" "build-tools;35.0.0"; do
             yes | sdkmanager "$p" >/dev/null 2>&1 && echo "installed: $p" || echo "skipped: $p"
           done
 

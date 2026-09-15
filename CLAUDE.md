@@ -54,7 +54,7 @@ weartube/
 ## 技術方針
 
 - Kotlin / Compose for Wear OS（`androidx.wear.compose.material3` を使う。material 1.x は混ぜない）
-- minSdk 30、targetSdk 35、compileSdk 36、JDK 17
+- minSdk 30、targetSdk 35、compileSdk 37、JDK 17
 - ビルドは AGP 9.1 / Gradle 9.5（TimTra と同じ組み合わせ）。`gradle/libs.versions.toml` で一元管理
 - DI は使わない。`AppContainer` で手動でインスタンスを渡し、`containerViewModel { app, c -> ... }` で ViewModel を作る
 - 状態は ViewModel + StateFlow。Composable に副作用を書かない（Toast は ViewModel のメッセージを `LaunchedEffect` で拾って出す）

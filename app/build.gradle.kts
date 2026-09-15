@@ -19,7 +19,7 @@ val youtubeApiKey: String =
 
 android {
     namespace = "com.kazuya.weartube"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.kazuya.weartube"

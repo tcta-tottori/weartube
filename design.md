@@ -195,7 +195,7 @@ weartube/
 | 永続化 | DataStore（Preferences） |
 | DI | 手動 DI（`AppContainer`。規模的に Hilt 不要） |
 | ビルド | AGP 9.1 / Gradle 9.5 / JDK 17。TimTra と同じ構成で GitHub Actions がビルド |
-| minSdk / targetSdk / compileSdk | 30 / 35 / 36 |
+| minSdk / targetSdk / compileSdk | 30 / 35 / 37 |
 
 ### 5.3 再生方式
 
