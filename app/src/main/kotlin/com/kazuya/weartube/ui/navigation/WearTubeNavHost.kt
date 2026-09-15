@@ -23,7 +23,7 @@ object Routes {
 fun WearTubeNavHost() {
     val navController = rememberSwipeDismissableNavController()
     // 時刻表示は全画面で残す（プレーヤーも没入表示にしない）
-    AppScaffold(timeText = { TimeText { time() } }) {
+    AppScaffold(timeText = { TimeText() }) {
         SwipeDismissableNavHost(navController = navController, startDestination = Routes.HOME) {
             composable(Routes.HOME) {
                 HomeScreen(
