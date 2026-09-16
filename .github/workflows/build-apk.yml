@@ -97,27 +97,21 @@ jobs:
           時計は開発者向けオプションで ADB デバッグと無線デバッグを有効にし、
           adb pair / adb connect で時計につないでから adb install -r weartube-wear-debug.apk を実行する。"
 
-      # 一時的な調査。GeckoView は Maven Central に無く、開発環境からは maven.mozilla.org に届かないため
+      # 一時的な調査。GeckoView は Maven Central に無く、開発環境からは maven.mozilla.org に届かないため。
+      # ログの末尾で読めるよう、出力は数行に絞る
       - name: GeckoView の版と ABI を調べる
         run: |
-          echo "=== org/mozilla/geckoview/ の成果物一覧 ==="
-          curl -sS --max-time 60 https://maven.mozilla.org/maven2/org/mozilla/geckoview/ \
-            | grep -oE 'href="[^"]+"' | sed 's/href="//; s/"//' | head -40
-          echo "=== geckoview の版（新しい順に 20 件） ==="
-          curl -sS --max-time 60 https://maven.mozilla.org/maven2/org/mozilla/geckoview/geckoview/maven-metadata.xml \
-            | grep -oE '<version>[^<]+' | sed 's/<version>//' | tail -20
-          echo "=== latest / release ==="
-          curl -sS --max-time 60 https://maven.mozilla.org/maven2/org/mozilla/geckoview/geckoview/maven-metadata.xml \
-            | grep -oE '<(latest|release)>[^<]+' || true
-          echo "=== 最新版の AAR の大きさと ABI ==="
-          V=$(curl -sS --max-time 60 https://maven.mozilla.org/maven2/org/mozilla/geckoview/geckoview/maven-metadata.xml \
-            | grep -oE '<release>[^<]+' | sed 's/<release>//')
-          echo "release=$V"
-          curl -sSL --max-time 300 -o gv.aar "https://maven.mozilla.org/maven2/org/mozilla/geckoview/geckoview/$V/geckoview-$V.aar" || true
-          ls -la gv.aar || true
-          unzip -l gv.aar 2>/dev/null | grep -E 'jni/|\.so$' | awk '{print $4}' | cut -d/ -f1-2 | sort -u || true
-          echo "=== pom の依存 ==="
-          curl -sS --max-time 60 "https://maven.mozilla.org/maven2/org/mozilla/geckoview/geckoview/$V/geckoview-$V.pom" | head -60 || true
+          BASE=https://maven.mozilla.org/maven2/org/mozilla/geckoview
+          V=$(curl -sS --max-time 60 $BASE/geckoview/maven-metadata.xml | grep -oE '<release>[^<]+' | sed 's/<release>//')
+          echo "GV> release=$V"
+          echo "GV> versions=$(curl -sS --max-time 60 $BASE/geckoview/maven-metadata.xml \
+            | grep -oE '<version>[^<]+' | sed 's/<version>//' | tail -6 | tr '\n' ' ')"
+          echo "GV> artifacts=$(curl -sS --max-time 60 https://maven.mozilla.org/maven2/org/mozilla/geckoview/ \
+            | grep -oE 'href="[^"/]+/"' | sed 's/href="//; s|/"||' | tr '\n' ' ')"
+          curl -sSL --max-time 600 -o gv.aar "$BASE/geckoview/$V/geckoview-$V.aar"
+          echo "GV> aar_bytes=$(stat -c%s gv.aar)"
+          echo "GV> abis=$(unzip -l gv.aar | grep -oE 'jni/[^/]+/' | sort -u | tr '\n' ' ')"
+          echo "GV> so_total=$(unzip -l gv.aar | grep -E '\.so$' | awk '{s+=$1} END {print s}')"
           rm -f gv.aar
 
       - name: レポートをアップロード（失敗時）
