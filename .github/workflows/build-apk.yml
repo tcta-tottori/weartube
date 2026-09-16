@@ -59,6 +59,9 @@ jobs:
           mkdir -p artifacts
           cp wear/build/outputs/apk/debug/wear-debug.apk artifacts/weartube-wear-debug.apk
           cp mobile/build/outputs/apk/debug/mobile-debug.apk artifacts/weartube-phone-debug.apk
+          # 同じファイル名だと古いダウンロードを入れ直してしまうので、版つきの名前でも置く
+          cp artifacts/weartube-wear-debug.apk "artifacts/weartube-wear-0.1.${GITHUB_RUN_NUMBER}.apk"
+          cp artifacts/weartube-phone-debug.apk "artifacts/weartube-phone-0.1.${GITHUB_RUN_NUMBER}.apk"
           ls -la artifacts
 
       - name: APK をアップロード
@@ -83,10 +86,14 @@ jobs:
             --prerelease \
             --notes "コミット ${GITHUB_SHA} の debug ビルド。ビルド番号 ${GITHUB_RUN_NUMBER}。
 
-          - weartube-wear-debug.apk — Wear OS（Pixel Watch）用
-          - weartube-phone-debug.apk — スマホの設定アプリ（API キー・お気に入りを時計に同期。同じ debug 署名）
+          - weartube-wear-0.1.${GITHUB_RUN_NUMBER}.apk — Wear OS（Pixel Watch）用
+          - weartube-phone-0.1.${GITHUB_RUN_NUMBER}.apk — スマホの設定アプリ（API キー・お気に入りを時計に同期。同じ debug 署名）
 
-          インストール: スマホは weartube-phone-debug.apk をダウンロードして開く。
+          weartube-wear-debug.apk / weartube-phone-debug.apk は同じ中身で、リンクが変わらない版。
+          入れ直したつもりで古いままだった、を防ぐには版つきの名前のほうを使う。
+          入れたあとは設定画面の「バージョン 0.1.${GITHUB_RUN_NUMBER}」で確認できる。
+
+          インストール: スマホは APK をダウンロードして開く。
           時計は開発者向けオプションで ADB デバッグと無線デバッグを有効にし、
           adb pair / adb connect で時計につないでから adb install -r weartube-wear-debug.apk を実行する。"
 

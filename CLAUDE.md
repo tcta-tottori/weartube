@@ -176,6 +176,9 @@ adb logcat | grep -i weartube
   - 時計用 APK 直リンク: https://github.com/tcta-tottori/weartube/releases/download/dev/weartube-wear-debug.apk
   - スマホ用 APK 直リンク: https://github.com/tcta-tottori/weartube/releases/download/dev/weartube-phone-debug.apk
 - 併せてビルド番号（versionName 0.1.<実行番号>）を添え、設定画面で確認できるようにする
+- 版つきの名前（`weartube-wear-0.1.<実行番号>.apk`）も同じリリースに置いてある。
+  同じファイル名だと古いダウンロードを入れ直してしまうので、**入れ直しを伴う確認を依頼するときは版つきの直リンクを案内し、
+  設定画面のバージョン表示で確認してもらう**
 
 ---
 
