@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>WearTube PoC</title>
+<style>
+  /* YouTube 公式 player をそのまま出す。隠す・覆う・切り取るはしない（design.md 12 章 STEP 7） */
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
+  #player { width: 100%; height: 100%; border: 0; display: block; }
+</style>
+</head>
+<body>
+<div id="player"></div>
+<script>
+  // console.log は GeckoRuntimeSettings.consoleOutput(true) により Logcat に出る。
+  // 実機でしか再現しないため、判断に必要な値はすべてここから出す。
+  function log(msg) { console.log('WT_PoC ' + msg); }
+
+  var params = new URLSearchParams(location.search);
+  var videoId = params.get('v') || '';
+  var player = null;
+
+  function logEnvironment() {
+    log('ORIGIN=' + location.origin);
+    log('UA=' + navigator.userAgent);
+    log('VIEWPORT=' + window.innerWidth + 'x' + window.innerHeight +
+        ' DPR=' + window.devicePixelRatio +
+        ' SCREEN=' + screen.width + 'x' + screen.height);
+  }
+
+  function logPlayerRect(when) {
+    var el = document.querySelector('#player') || document.querySelector('iframe');
+    if (!el) { log('RECT_' + when + '=none'); return; }
+    var r = el.getBoundingClientRect();
+    var ok = (r.width >= 200 && r.height >= 200);
+    log('RECT_' + when + '=' + Math.round(r.width) + 'x' + Math.round(r.height) +
+        ' MEETS_200x200=' + ok);
+  }
+
+  function onYouTubeIframeAPIReady() {
+    log('IFRAME_API=ready');
+    player = new YT.Player('player', {
+      width: '100%',
+      height: '100%',
+      videoId: videoId,
+      // 公式 player の見た目と操作はそのまま使う。controls は消さない
+      playerVars: {
+        playsinline: 1,
+        enablejsapi: 1,
+        rel: 0,
+        origin: location.origin
+      },
+      events: {
+        onReady: function () {
+          log('EVENT=onReady videoId=' + videoId);
+          logPlayerRect('onReady');
+          // 自動再生がどう扱われるかを見る。ブロックされたら onAutoplayBlocked が来る
+          try { player.playVideo(); } catch (e) { log('PLAY_CALL_FAILED=' + e); }
+        },
+        onStateChange: function (e) {
+          log('EVENT=onStateChange data=' + e.data);
+          if (e.data === 1) logPlayerRect('playing');
+        },
+        onError: function (e) {
+          log('EVENT=onError data=' + e.data);
+        },
+        onAutoplayBlocked: function () {
+          log('EVENT=onAutoplayBlocked');
+        },
+        onApiChange: function () {
+          log('EVENT=onApiChange');
+        }
+      }
+    });
+  }
+
+  window.addEventListener('error', function (e) {
+    log('JS_ERROR=' + e.message + ' @' + e.filename + ':' + e.lineno);
+  });
+
+  logEnvironment();
+  logPlayerRect('initial');
+
+  var tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  tag.onerror = function () { log('IFRAME_API=load_failed'); };
+  document.head.appendChild(tag);
+</script>
+</body>
+</html>

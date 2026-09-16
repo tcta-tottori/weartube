@@ -50,6 +50,24 @@
     <string name="player_back">戻る</string>
     <string name="player_loading">読み込み中…</string>
 
+    <!-- 再生方式の検証（PoC） -->
+    <string name="poc_title">再生方式の検証</string>
+    <string name="poc_entry">再生方式の検証（PoC）</string>
+    <string name="poc_env">%1$s / API %2$d</string>
+    <string name="poc_webview">WebView: %1$s</string>
+    <string name="poc_browser">ブラウザ: %1$s</string>
+    <string name="poc_custom_tabs">Custom Tabs: %1$s</string>
+    <string name="poc_screen">画面 %1$d×%2$d px・短辺 %3$d css px</string>
+    <string name="poc_yes">あり</string>
+    <string name="poc_no">なし</string>
+    <string name="poc_route_browser">時計のブラウザで開く</string>
+    <string name="poc_route_gecko_wrapper">GeckoView（ラッパー経由）</string>
+    <string name="poc_route_gecko_embed">GeckoView（埋め込み URL 直接）</string>
+    <string name="poc_route_phone">スマホで開く（未実装）</string>
+    <string name="poc_browser_failed">開けるアプリがありません</string>
+    <string name="poc_video">検証する動画: %1$s</string>
+    <string name="poc_gecko_failed">GeckoView を起動できません\n%1$s</string>
+
     <!-- 設定 -->
     <string name="settings_title">設定</string>
     <string name="settings_api_key">YouTube APIキー</string>

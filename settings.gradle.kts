@@ -24,6 +24,11 @@ dependencyResolutionManagement {
                 includeGroupByRegex("androidx.*")
             }
         }
+        // GeckoView は Maven Central に無く、Mozilla の Maven にしか置かれていない
+        maven {
+            url = uri("https://maven.mozilla.org/maven2/")
+            content { includeGroupByRegex("org\\.mozilla.*") }
+        }
     }
 }
 

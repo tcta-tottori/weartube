@@ -9,10 +9,20 @@
     <!-- 再生中の画面消灯を防ぐ（FLAG_KEEP_SCREEN_ON） -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
-    <!-- 音声検索（RecognizerIntent）の呼び出し先を解決するため -->
+    <!-- 呼び出し先を解決するため（API 30 以降は queries が必要） -->
     <queries>
+        <!-- 音声検索 -->
         <intent>
             <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+        <!-- 時計にブラウザ相当のアプリがあるか -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <!-- Custom Tabs に対応したアプリがあるか -->
+        <intent>
+            <action android:name="android.support.customtabs.action.CustomTabsService" />
         </intent>
     </queries>
 
@@ -44,6 +54,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- 再生方式の検証（design.md 12 章）。本番の再生画面とは独立している -->
+        <activity
+            android:name=".playback.gecko.GeckoViewPlayerActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode|smallestScreenSize|density"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
 
         <!-- スマホの設定アプリからの同期（API キー・お気に入り）を受け取る -->
         <service

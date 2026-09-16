@@ -375,3 +375,69 @@ design.md 5.3 の再生方式（WebView + 公式 IFrame Player）は、この端
 | B | 音声だけ YouTube Music | 公式の YouTube Music（Wear OS 版）を使う。開発は不要 | 動画は見られない。Premium が要る |
 | C | GeckoView を同梱 | WebView の代わりに Mozilla の描画エンジンを積み、その中で公式 IFrame Player を動かす | 目的は保てるが、APK が 100MB を超え、時計の性能では実用になりにくい。成功する見込みは低い |
 | D | 再生を諦める | お気に入り・検索の管理アプリとして残す | 目的を満たさない |
+
+---
+
+## 12. 再生方式の検証（GeckoView PoC、2026-09-16〜）
+
+11 章の通り WebView が使えないため、**本番採用を前提にせず**、実機で Go / No-Go を判断するための検証を行う。
+本番の再生画面（4.2、`ui/player`）はこの検証とは独立させ、壊さない。
+
+### 12.1 やらないこと（再確認）
+
+ストリーム URL の抽出、`googlevideo` の URL 取得、動画・音声のダウンロード、Media3 / ExoPlayer に
+YouTube の生ストリームを流す実装は行わない。広告の非表示・回避、公式 player の UI を覆う・切り取る・
+画面外へ追い出す実装も行わない。検証中は **YouTube 公式 player をそのまま表示する**。
+
+### 12.2 構成
+
+```
+playback/
+├── PlaybackCapabilities.kt   端末の判定（WebView / ブラウザ / Custom Tabs / ABI / 画面）
+├── PlaybackRoute.kt          経路の型（WatchBrowser / InAppGecko / Phone）と GeckoLoadMode
+├── PlaybackRouter.kt         使える経路の一覧と、ブラウザへの受け渡し
+└── gecko/
+    ├── GeckoRuntimeHolder.kt GeckoRuntime をプロセスに 1 つだけ持つ
+    ├── WrapperServer.kt      ラッパーページを返す端末内 HTTP サーバー
+    └── GeckoViewPlayerActivity.kt  検証専用の画面
+ui/poc/PocScreen.kt           判定結果の表示と、各経路の起動
+assets/iframe_wrapper.html    IFrame Player API を使うラッパーページ
+```
+
+UI から GeckoView を直接呼ばず、`PlaybackRouter` を通す。将来
+`Watch Browser / Custom Tabs → In-App GeckoView → Phone` を切り替えられるようにするための土台。
+
+### 12.3 読み込みの 2 方式を比べる
+
+`error 153`（埋め込み元の identity 不正）が出たとき、GeckoView 自体の問題なのか referer / origin の
+問題なのかを切り分けるため、次の 2 つを別々に試せるようにする。
+
+| モード | 読み込むもの | origin | referer |
+|---|---|---|---|
+| `DIRECT_EMBED` | `https://www.youtube.com/embed/<id>` | youtube.com | `GeckoSession.Loader.referrer()` で `https://www.youtube.com/` を付ける |
+| `LOCAL_WRAPPER` | 端末内 HTTP サーバーの `http://127.0.0.1:<port>/player` | `http://127.0.0.1:<port>` | なし（IFrame API に `origin` を渡す） |
+
+`file://` では origin を検証できないため使わない。
+
+### 12.4 実機で取る値
+
+ラッパーページの `console.log` は `GeckoRuntimeSettings.consoleOutput(true)` により Logcat に出る。
+先頭に `WT_PoC` を付けてある。ネイティブ側は `Log`（タグ `WearTubePoC`）。
+
+- `FEATURE_WEBVIEW` / `WATCH_BROWSER_HANDLER` / `CUSTOM_TABS_PROVIDER` / `HANDLER_PACKAGES`
+- `ABIS` / `API_LEVEL` / `SCREEN_PX` / `DENSITY` / `SCREEN_MIN_CSS_PX`
+- `GECKO_RUNTIME` / `GECKO_PAGE_START` / `GECKO_PAGE_STOP` / `GECKO_CONTENT`（crash / killed）
+- `WT_PoC ORIGIN` / `UA` / `VIEWPORT`（`innerWidth`×`innerHeight`、`devicePixelRatio`）
+- `WT_PoC RECT_*`（player の `getBoundingClientRect`）と `MEETS_200x200`
+- `WT_PoC EVENT=onReady / onStateChange / onError / onAutoplayBlocked / onApiChange`
+
+YouTube の player は **CSS px で 200×200 以上**が要る。丸型画面なので物理解像度ではなく
+`RECT_*` の値で判断する。
+
+### 12.5 Go / No-Go
+
+GO は次をすべて満たすこと。GeckoView が安定起動し、IFrame Player が読み込め、通常動画と音声が再生でき、
+`error 153` が出ないか正規の方法で解決でき、200×200 を満たし、YouTube 標準のコントロールが操作でき、
+広告表示で破綻せず、画面の再生成・終了・再起動でクラッシュせず、セッションがリークせず、Wi-Fi で安定すること。
+
+NO-GO なら**規約違反の回避策は実装せず止める**。10 章までの機能（お気に入り・検索・スマホ同期）はそのまま残す。

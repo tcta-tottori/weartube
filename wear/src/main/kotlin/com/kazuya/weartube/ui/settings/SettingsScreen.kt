@@ -37,7 +37,7 @@ import java.time.format.DateTimeFormatter
 
 /** design.md 4.1 の設定。APIキーの入力と電池の注意書き。 */
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(onPoc: () -> Unit) {
     val viewModel = containerViewModel { _, c -> SettingsViewModel(c.settings, c.favorites) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val prompt = stringResource(R.string.settings_api_key_prompt)
@@ -47,6 +47,7 @@ fun SettingsScreen() {
         state = state,
         onEnterApiKey = { launcher.launch(textInputIntent(prompt)) },
         onClearApiKey = viewModel::clearApiKey,
+        onPoc = onPoc,
     )
 }
 
@@ -55,6 +56,7 @@ private fun SettingsContent(
     state: SettingsUiState,
     onEnterApiKey: () -> Unit,
     onClearApiKey: () -> Unit,
+    onPoc: () -> Unit,
 ) {
     val listState = rememberScalingLazyListState()
     ScreenScaffold(scrollState = listState) {
@@ -80,6 +82,14 @@ private fun SettingsContent(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+            }
+            item {
+                Button(
+                    onClick = onPoc,
+                    label = { Text(stringResource(R.string.poc_entry), maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                    colors = ButtonDefaults.outlinedButtonColors(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
             item { Note(stringResource(R.string.settings_favorites_count, state.favoriteCount)) }
             item { Note(syncLabel(state.lastSyncAt)) }
@@ -123,6 +133,7 @@ private fun SettingsPreview() {
             state = SettingsUiState(apiKeySource = ApiKeySource.USER, apiKeyTail = "Ab12", favoriteCount = 3),
             onEnterApiKey = {},
             onClearApiKey = {},
+            onPoc = {},
         )
     }
 }

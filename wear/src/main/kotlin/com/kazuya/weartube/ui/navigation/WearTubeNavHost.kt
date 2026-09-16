@@ -8,6 +8,7 @@ import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
 import com.kazuya.weartube.ui.home.HomeScreen
 import com.kazuya.weartube.ui.player.PlayerScreen
+import com.kazuya.weartube.ui.poc.PocScreen
 import com.kazuya.weartube.ui.search.SearchScreen
 import com.kazuya.weartube.ui.settings.SettingsScreen
 
@@ -17,6 +18,9 @@ object Routes {
     const val SEARCH = "search"
     const val PLAYER = "player"
     const val SETTINGS = "settings"
+
+    /** 再生方式の検証（design.md 12 章）。本番の再生画面とは別。 */
+    const val POC = "poc"
 }
 
 @Composable
@@ -39,7 +43,10 @@ fun WearTubeNavHost() {
                 PlayerScreen(onBack = { navController.popBackStack() })
             }
             composable(Routes.SETTINGS) {
-                SettingsScreen()
+                SettingsScreen(onPoc = { navController.navigate(Routes.POC) })
+            }
+            composable(Routes.POC) {
+                PocScreen()
             }
         }
     }
