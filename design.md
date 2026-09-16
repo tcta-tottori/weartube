@@ -261,7 +261,7 @@ APIキーはソースにハードコードせず、次の順で解決する。
 
 | 項目 | 内容・対策 |
 |---|---|
-| **WebView の可用性** | Wear OS の公式ドキュメントは `android.webkit` を非対応 API に挙げている。Pixel Watch で実際に描画・再生できるかは**実機で確認する**。なお `getCurrentWebViewPackage()` は Wear OS では WebView が使えても null を返すため、可否の判定に使わない（2026-09-15 実機で誤判定を確認）。生成に失敗したときだけ明示エラーを出す |
+| **WebView が使えない（2026-09-16 実機で確定）** | Pixel Watch は `PackageManager.FEATURE_WEBVIEW` を持たず、`WebView(context)` が `UnsupportedOperationException` を投げる（`feature=false` / `app=UnsupportedOperationException: null`）。WebView は OS の機能なので後から入れることはできない。**IFrame Player を使う本設計では動画を再生できない**（11 章） |
 | 電池 | WebView + 画面点灯で消費が大きい。長時間視聴には向かない前提。設定画面に注意書きを置く |
 | 画面消灯 | 画面が消えると再生が止まる。再生中は `FLAG_KEEP_SCREEN_ON` を立て、アンビエントモードには入らない。バックグラウンド音声のみ再生は成立しないと割り切る |
 | 描画性能 | ウォッチの WebView は重く、コマ落ちする前提。画質は自動に任せ `vq` 指定はしない |
@@ -333,3 +333,45 @@ YouTube アプリの共有シートからこのアプリを選ぶと URL が `AC
 ### 10.4 アイコン
 
 赤地に白の再生マーク（添付画像）を時計・スマホ共通で使う。adaptive icon はマスクで中央 72dp しか見えず ▶ が拡大されるため、前景は赤で塗った 108dp のキャンバスに画像を 72dp（2/3）で中央に置く。背景は画像の赤（`#DB1617`）。
+
+---
+
+## 11. WebView が無いという結論（2026-09-16）
+
+### 確認したこと
+
+Pixel Watch（Wear OS）実機で、プレーヤー画面が次を表示した。
+
+```
+0.1.11 feature=false app=UnsupportedOperationException: null / themed=UnsupportedOperationException: null
+```
+
+- `feature=false` … `PackageManager.hasSystemFeature(FEATURE_WEBVIEW)` が false
+- `UnsupportedOperationException` … `WebViewFactory` がこの機能の無い端末で投げる例外
+
+Application Context でもテーマ付き Context でも同じ結果で、**この端末に WebView は存在しない**。
+WebView は OS の一部なので、アプリを入れて補うことはできない。
+
+### 影響
+
+design.md 5.3 の再生方式（WebView + 公式 IFrame Player）は、この端末では成立しない。
+1 章の目的「Pixel Watch 単体で YouTube 動画を再生する」は、**現状の方式では達成できない**。
+
+2 章の非目標（ストリーム URL の抽出、ダウンロード）は YouTube 利用規約違反なので、
+回避策としても採らない。つまり「時計単体で動画を再生する」正規の手段が無い。
+
+### 動いている部分
+
+再生以外は実機で動作を確認済み。
+
+- ホーム / 検索 / 設定の各画面、お気に入りの保存
+- スマホ設定アプリでの API キー入力と、Data Layer 経由の時計への同期（「スマホと同期: 9/16 22:44」を確認）
+
+### 残る選択肢
+
+| # | 方針 | 内容 | 評価 |
+|---|---|---|---|
+| A | 時計は操作だけ、再生はスマホ | 時計から選んだ動画をスマホの YouTube アプリで開く。音は Wear OS 標準のメディア操作で制御できる | 確実に動く。ただし「時計単体」ではなくなる |
+| B | 音声だけ YouTube Music | 公式の YouTube Music（Wear OS 版）を使う。開発は不要 | 動画は見られない。Premium が要る |
+| C | GeckoView を同梱 | WebView の代わりに Mozilla の描画エンジンを積み、その中で公式 IFrame Player を動かす | 目的は保てるが、APK が 100MB を超え、時計の性能では実用になりにくい。成功する見込みは低い |
+| D | 再生を諦める | お気に入り・検索の管理アプリとして残す | 目的を満たさない |

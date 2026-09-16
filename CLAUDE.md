@@ -120,7 +120,8 @@ webView.loadDataWithBaseURL(
 - Kotlin → JS：`evaluateJavascript("playVideo()", null)` のように player.html の関数を呼ぶ
 - JS → Kotlin：`@JavascriptInterface`（`window.Android`）で `onApiReady` / `onStateChange` / `onTime`（250ms 間隔）/ `onError`
 - 再生中は `window.addFlags(FLAG_KEEP_SCREEN_ON)`、停止時・画面を離れるときに必ず clear する
-- **WebView の有無を `getCurrentWebViewPackage()` で事前判定しない**。Wear OS には WebViewUpdateService が無く、WebView が使えても null が返るため誤判定になる（実機で確認済み）。`WebView(context)` を try/catch で生成し、`RuntimeException` / `LinkageError` を捕まえたときだけエラー表示に落とす
+- **Pixel Watch に WebView は無い（2026-09-16 実機で確定）**。`FEATURE_WEBVIEW` が false で、`WebView(context)` が `UnsupportedOperationException` を投げる。OS の機能なので後から入れられない。**この端末では IFrame Player による再生が成立しない**（design.md 11 章）。今後の方針は未決なので、再生方式を変える作業に入る前に必ず確認を取ること
+- 有無の判定に `getCurrentWebViewPackage()` を使わない（WebView が使えても null が返る）。`WebView(context)` を try/catch で生成し、`RuntimeException` / `LinkageError` を捕まえたときだけエラー表示に落とす
 - 実機でしか再現しない不具合を追うため、`WebViewClient.onReceivedError` と `WebChromeClient.onConsoleMessage` を `Log`（タグ `WearTubePlayer`）に出す
 - ライブ判定に `getDuration()` を使わない（ライブでは経過時間が返る）。Data API の `liveBroadcastContent` を使う
 

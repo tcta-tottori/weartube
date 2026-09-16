@@ -45,7 +45,7 @@
     <string name="player_volume_zero">メディア音量が 0 です</string>
     <string name="player_error_unplayable">この動画はウォッチで\n再生できません</string>
     <string name="player_error_offline">ネットワーク未接続です\nWi-Fi か LTE を確認してください</string>
-    <string name="player_error_no_webview">この端末には WebView がなく\n再生できません</string>
+    <string name="player_error_no_webview">この時計は WebView に対応しておらず\n動画を再生できません</string>
     <string name="player_error_load">プレーヤーを読み込めません</string>
     <string name="player_back">戻る</string>
     <string name="player_loading">読み込み中…</string>
