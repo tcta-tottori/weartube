@@ -37,6 +37,10 @@ rootProject.name = "weartube"
 // shared : お気に入り・API キーの DataStore、YouTube Data API、Data Layer 同期（wear と mobile で共有）
 // wear   : Wear OS アプリ（再生はすべてここで完結する）
 // mobile : スマホの設定アプリ（API キー入力、お気に入り管理、時計への同期）
+// geckopoc : GeckoView の検証専用アプリ（本体には入れない）
 include(":shared")
 include(":wear")
 include(":mobile")
+
+// geckopoc : 再生方式の検証専用アプリ（design.md 12 章）。GeckoView が重いので本体とは別にする
+include(":geckopoc")

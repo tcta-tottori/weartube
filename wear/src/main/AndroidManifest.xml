@@ -55,13 +55,6 @@
             </intent-filter>
         </activity>
 
-        <!-- 再生方式の検証（design.md 12 章）。本番の再生画面とは独立している -->
-        <activity
-            android:name=".playback.gecko.GeckoViewPlayerActivity"
-            android:exported="false"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode|smallestScreenSize|density"
-            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
-
         <!-- スマホの設定アプリからの同期（API キー・お気に入り）を受け取る -->
         <service
             android:name=".sync.WearDataListenerService"

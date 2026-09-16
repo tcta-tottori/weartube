@@ -120,7 +120,10 @@ webView.loadDataWithBaseURL(
 - Kotlin → JS：`evaluateJavascript("playVideo()", null)` のように player.html の関数を呼ぶ
 - JS → Kotlin：`@JavascriptInterface`（`window.Android`）で `onApiReady` / `onStateChange` / `onTime`（250ms 間隔）/ `onError`
 - 再生中は `window.addFlags(FLAG_KEEP_SCREEN_ON)`、停止時・画面を離れるときに必ず clear する
-- 再生方式は検証中（design.md 12 章）。`playback/` の PoC は**本番採用を前提にしない**。
+- 再生方式は検証中（design.md 12 章）。GeckoView は**本体に入れない**。APK が 212MB になり実機に入らなかったため、
+  検証は別アプリ `geckopoc`（applicationId `com.kazuya.weartube.poc`、ABI ごとに APK を分割）で行う。
+  本体は 43MB のまま保つこと
+- `playback/` の PoC は**本番採用を前提にしない**。
   UI から GeckoView を直接呼ばず `PlaybackRouter` を通す。既存の `ui/player`（WebView 版）は壊さない
 - 検証中も YouTube 公式 player をそのまま表示する。広告を隠す・UI を覆う・切り取る・画面外に追い出すは行わない
 - **Pixel Watch に WebView は無い（2026-09-16 実機で確定）**。`FEATURE_WEBVIEW` が false で、`WebView(context)` が `UnsupportedOperationException` を投げる。OS の機能なので後から入れられない。**この端末では IFrame Player による再生が成立しない**（design.md 11 章）。今後の方針は未決なので、再生方式を変える作業に入る前に必ず確認を取ること

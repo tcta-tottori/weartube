@@ -51,7 +51,7 @@ jobs:
         # YouTube Data API のキーはリポジトリの secret から BuildConfig に入れる（無ければ空＝スマホ／時計の設定画面で入力）
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-        run: ./gradlew :wear:assembleDebug :mobile:assembleDebug
+        run: ./gradlew :wear:assembleDebug :mobile:assembleDebug :geckopoc:assembleDebug
 
       - name: APK をまとめる
         if: success()
@@ -62,6 +62,11 @@ jobs:
           # 同じファイル名だと古いダウンロードを入れ直してしまうので、版つきの名前でも置く
           cp artifacts/weartube-wear-debug.apk "artifacts/weartube-wear-0.1.${GITHUB_RUN_NUMBER}.apk"
           cp artifacts/weartube-phone-debug.apk "artifacts/weartube-phone-0.1.${GITHUB_RUN_NUMBER}.apk"
+          # 検証専用アプリは GeckoView が重いので ABI ごとに分けてある
+          for abi in armeabi-v7a arm64-v8a; do
+            src="geckopoc/build/outputs/apk/debug/geckopoc-$abi-debug.apk"
+            [ -f "$src" ] && cp "$src" "artifacts/weartube-poc-$abi-0.1.${GITHUB_RUN_NUMBER}.apk"
+          done
           ls -la artifacts
 
       - name: APK をアップロード
@@ -86,8 +91,11 @@ jobs:
             --prerelease \
             --notes "コミット ${GITHUB_SHA} の debug ビルド。ビルド番号 ${GITHUB_RUN_NUMBER}。
 
-          - weartube-wear-0.1.${GITHUB_RUN_NUMBER}.apk — Wear OS（Pixel Watch）用
+          - weartube-wear-0.1.${GITHUB_RUN_NUMBER}.apk — Wear OS（Pixel Watch）用の本体
           - weartube-phone-0.1.${GITHUB_RUN_NUMBER}.apk — スマホの設定アプリ（API キー・お気に入りを時計に同期。同じ debug 署名）
+          - weartube-poc-<ABI>-0.1.${GITHUB_RUN_NUMBER}.apk — 再生方式の検証専用アプリ（別アプリ。GeckoView を含むので大きい）
+
+          検証アプリは ABI ごとに分けてある。時計の ABI は adb shell getprop ro.product.cpu.abilist で分かる。
 
           weartube-wear-debug.apk / weartube-phone-debug.apk は同じ中身で、リンクが変わらない版。
           入れ直したつもりで古いままだった、を防ぐには版つきの名前のほうを使う。

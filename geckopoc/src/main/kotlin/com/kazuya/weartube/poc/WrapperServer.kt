@@ -1,7 +1,7 @@
-package com.kazuya.weartube.playback.gecko
+package com.kazuya.weartube.poc
 
 import android.util.Log
-import com.kazuya.weartube.playback.PlaybackCapabilities
+import com.kazuya.weartube.poc.GeckoRuntimeHolder.TAG
 import java.io.Closeable
 import java.io.IOException
 import java.net.InetAddress
@@ -24,7 +24,7 @@ class WrapperServer(
 
     init {
         thread(name = "weartube-wrapper", isDaemon = true) { acceptLoop() }
-        Log.i(PlaybackCapabilities.TAG, "WRAPPER_SERVER=$origin")
+        Log.i(TAG, "WRAPPER_SERVER=$origin")
     }
 
     /** 動画 ID を渡して開く URL。 */
@@ -34,7 +34,7 @@ class WrapperServer(
         try {
             server.close()
         } catch (e: IOException) {
-            Log.w(PlaybackCapabilities.TAG, "WRAPPER_SERVER_CLOSE=${e.message}")
+            Log.w(TAG, "WRAPPER_SERVER_CLOSE=${e.message}")
         }
     }
 
@@ -43,7 +43,7 @@ class WrapperServer(
             try {
                 server.accept().use(::respond)
             } catch (e: IOException) {
-                if (!server.isClosed) Log.w(PlaybackCapabilities.TAG, "WRAPPER_SERVER_ACCEPT=${e.message}")
+                if (!server.isClosed) Log.w(TAG, "WRAPPER_SERVER_ACCEPT=${e.message}")
                 return
             }
         }

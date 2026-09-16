@@ -24,7 +24,6 @@ import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import androidx.wear.tooling.preview.devices.WearDevices
 import com.kazuya.weartube.R
-import com.kazuya.weartube.playback.GeckoLoadMode
 import com.kazuya.weartube.playback.PlaybackCapabilities
 import com.kazuya.weartube.playback.PlaybackRoute
 import com.kazuya.weartube.playback.RouteStatus
@@ -51,7 +50,6 @@ fun PocScreen() {
                 Toast.makeText(context, failedMessage, Toast.LENGTH_SHORT).show()
             }
         },
-        onOpenGecko = { mode -> viewModel.openGecko(context, mode) },
     )
 }
 
@@ -61,7 +59,6 @@ private fun PocContent(
     statuses: List<RouteStatus>,
     videoId: String,
     onOpenBrowser: () -> Unit,
-    onOpenGecko: (GeckoLoadMode) -> Unit,
 ) {
     val listState = rememberScalingLazyListState()
     val browserAvailable = statuses.firstOrNull { it.route == PlaybackRoute.WatchBrowser }?.available == true
@@ -92,22 +89,7 @@ private fun PocContent(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            item {
-                Button(
-                    onClick = { onOpenGecko(GeckoLoadMode.LOCAL_WRAPPER) },
-                    label = { Text(stringResource(R.string.poc_route_gecko_wrapper), maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                    colors = ButtonDefaults.buttonColors(),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            item {
-                Button(
-                    onClick = { onOpenGecko(GeckoLoadMode.DIRECT_EMBED) },
-                    label = { Text(stringResource(R.string.poc_route_gecko_embed), maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                    colors = ButtonDefaults.filledTonalButtonColors(),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            item { Line(stringResource(R.string.poc_route_gecko)) }
             item { Line(stringResource(R.string.poc_route_phone)) }
         }
     }
@@ -147,7 +129,6 @@ private fun PocPreview() {
             statuses = emptyList(),
             videoId = "aqz-KE-bpKQ",
             onOpenBrowser = {},
-            onOpenGecko = {},
         )
     }
 }

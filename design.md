@@ -391,17 +391,33 @@ YouTube の生ストリームを流す実装は行わない。広告の非表示
 
 ### 12.2 構成
 
+### 12.2 本体とは別アプリにする（2026-09-16 改）
+
+GeckoView を本体に入れると APK が 212MB になり、実機に入らなかった。
+そこで**検証を別アプリに分け、本体は元の大きさ（約 43MB）に戻す**。
+
+| アプリ | applicationId | 中身 |
+|---|---|---|
+| 本体 | `com.kazuya.weartube` | 既存の機能。端末判定とブラウザ経路だけ持つ |
+| 検証 | `com.kazuya.weartube.poc` | GeckoView と検証画面のみ。ABI ごとに APK を分ける |
+
+`.so` は ABI ごとに 100MB 近いので、`splits.abi` で `armeabi-v7a` / `arm64-v8a` を別々の APK にする。
+時計の ABI は `adb shell getprop ro.product.cpu.abilist` で分かる。
+`useLegacyPackaging` は既定（false）のまま。インストール時に展開されず、必要な容量が減る。
+
 ```
 playback/
 ├── PlaybackCapabilities.kt   端末の判定（WebView / ブラウザ / Custom Tabs / ABI / 画面）
 ├── PlaybackRoute.kt          経路の型（WatchBrowser / InAppGecko / Phone）と GeckoLoadMode
 ├── PlaybackRouter.kt         使える経路の一覧と、ブラウザへの受け渡し
-└── gecko/
-    ├── GeckoRuntimeHolder.kt GeckoRuntime をプロセスに 1 つだけ持つ
-    ├── WrapperServer.kt      ラッパーページを返す端末内 HTTP サーバー
-    └── GeckoViewPlayerActivity.kt  検証専用の画面
-ui/poc/PocScreen.kt           判定結果の表示と、各経路の起動
-assets/iframe_wrapper.html    IFrame Player API を使うラッパーページ
+ui/poc/PocScreen.kt           判定結果の表示と、ブラウザ経路の起動
+
+geckopoc/（別アプリ）
+├── PocLauncherActivity.kt    読み込み方式を選ぶだけの入口
+├── GeckoPlayerActivity.kt    GeckoView で公式 player を出す
+├── GeckoRuntimeHolder.kt     GeckoRuntime をプロセスに 1 つだけ持つ
+├── WrapperServer.kt          ラッパーページを返す端末内 HTTP サーバー
+└── assets/iframe_wrapper.html  IFrame Player API を使うラッパーページ
 ```
 
 UI から GeckoView を直接呼ばず、`PlaybackRouter` を通す。将来

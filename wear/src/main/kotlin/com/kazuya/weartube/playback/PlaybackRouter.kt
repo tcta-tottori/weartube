@@ -27,8 +27,8 @@ class PlaybackRouter(
             ),
             RouteStatus(
                 route = PlaybackRoute.InAppGecko,
-                available = true,
-                reason = "GeckoView で検証します",
+                available = false,
+                reason = "別アプリ WearTube PoC で検証",
             ),
             RouteStatus(
                 route = PlaybackRoute.Phone,

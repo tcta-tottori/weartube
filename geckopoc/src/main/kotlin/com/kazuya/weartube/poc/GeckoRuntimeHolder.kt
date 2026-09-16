@@ -1,8 +1,7 @@
-package com.kazuya.weartube.playback.gecko
+package com.kazuya.weartube.poc
 
 import android.content.Context
 import android.util.Log
-import com.kazuya.weartube.playback.PlaybackCapabilities
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoRuntimeSettings
 
@@ -11,6 +10,9 @@ import org.mozilla.geckoview.GeckoRuntimeSettings
  * consoleOutput を有効にしてあるので、ラッパーページの console.log が Logcat に出る。
  */
 object GeckoRuntimeHolder {
+    /** Logcat のタグ。検証で見るものはすべてここに出す。 */
+    const val TAG = "WearTubePoC"
+
     @Volatile
     private var runtime: GeckoRuntime? = null
 
@@ -33,15 +35,15 @@ object GeckoRuntimeHolder {
                 GeckoRuntime.create(context.applicationContext, settings).also {
                     runtime = it
                     failure = null
-                    Log.i(PlaybackCapabilities.TAG, "GECKO_RUNTIME=created")
+                    Log.i(TAG, "GECKO_RUNTIME=created")
                 }
             } catch (e: RuntimeException) {
                 failure = "${e.javaClass.simpleName}: ${e.message}"
-                Log.w(PlaybackCapabilities.TAG, "GECKO_RUNTIME=failed $failure")
+                Log.w(TAG, "GECKO_RUNTIME=failed $failure")
                 null
             } catch (e: LinkageError) {
                 failure = "${e.javaClass.simpleName}: ${e.message}"
-                Log.w(PlaybackCapabilities.TAG, "GECKO_RUNTIME=failed $failure")
+                Log.w(TAG, "GECKO_RUNTIME=failed $failure")
                 null
             }
         }

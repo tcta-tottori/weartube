@@ -31,18 +31,6 @@ android {
         versionName = "0.1.$ciRun"
 
         buildConfigField("String", "YOUTUBE_API_KEY", "\"$youtubeApiKey\"")
-
-        // GeckoView の native ライブラリは ABI ごとに数十 MB ある。時計で使う ARM だけに絞る
-        ndk {
-            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
-        }
-    }
-
-    // GeckoView は自前のローダで .so を開くため、圧縮したまま同梱すると起動しないことがある
-    packaging {
-        jniLibs {
-            useLegacyPackaging = true
-        }
     }
 
     // CI で毎回鍵が変わると上書きインストールできないため、リポジトリの固定鍵で署名する（keystore/README.md）
@@ -97,9 +85,6 @@ dependencies {
     implementation(libs.wear.compose.navigation)
     implementation(libs.wear.input)
     implementation(libs.wear.tooling.preview)
-
-    // WebView の無い端末で公式 IFrame Player を動かせるか検証する（design.md 12 章）
-    implementation(libs.geckoview)
 
     // Data Layer の受信サービスで suspend を待つ
     implementation(libs.kotlinx.coroutines.play.services)

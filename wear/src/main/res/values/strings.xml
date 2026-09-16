@@ -61,12 +61,10 @@
     <string name="poc_yes">あり</string>
     <string name="poc_no">なし</string>
     <string name="poc_route_browser">時計のブラウザで開く</string>
-    <string name="poc_route_gecko_wrapper">GeckoView（ラッパー経由）</string>
-    <string name="poc_route_gecko_embed">GeckoView（埋め込み URL 直接）</string>
+    <string name="poc_route_gecko">GeckoView: 別アプリ「WearTube PoC」で検証</string>
     <string name="poc_route_phone">スマホで開く（未実装）</string>
     <string name="poc_browser_failed">開けるアプリがありません</string>
     <string name="poc_video">検証する動画: %1$s</string>
-    <string name="poc_gecko_failed">GeckoView を起動できません\n%1$s</string>
 
     <!-- 設定 -->
     <string name="settings_title">設定</string>

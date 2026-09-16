@@ -1,20 +1,18 @@
-package com.kazuya.weartube.playback.gecko
+package com.kazuya.weartube.poc
 
 import android.app.Activity
 import android.os.Bundle
 import android.util.Log
 import android.view.WindowManager
 import android.widget.TextView
-import com.kazuya.weartube.playback.GeckoLoadMode
-import com.kazuya.weartube.playback.PlaybackCapabilities
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
 
 /**
- * 再生方式の検証だけを行う独立した画面（design.md 12 章 STEP 3）。
- * 本番の再生画面とは結び付けていない。UI は作り込まず、YouTube 公式 player をそのまま出す。
+ * GeckoView で YouTube 公式 player を出すだけの画面（design.md 12 章 STEP 3）。
+ * UI は作り込まない。公式 player をそのまま全画面に出し、隠す・覆う・切り取るはしない。
  */
-class GeckoViewPlayerActivity : Activity() {
+class GeckoPlayerActivity : Activity() {
     private var session: GeckoSession? = null
     private var wrapperServer: WrapperServer? = null
 
@@ -29,11 +27,7 @@ class GeckoViewPlayerActivity : Activity() {
 
         val runtime = GeckoRuntimeHolder.getOrNull(this)
         if (runtime == null) {
-            setContentView(
-                TextView(this).apply {
-                    text = getString(com.kazuya.weartube.R.string.poc_gecko_failed, GeckoRuntimeHolder.failure.orEmpty())
-                },
-            )
+            setContentView(TextView(this).apply { text = getString(R.string.gecko_failed, GeckoRuntimeHolder.failure.orEmpty()) })
             return
         }
 
@@ -58,7 +52,7 @@ class GeckoViewPlayerActivity : Activity() {
         when (mode) {
             GeckoLoadMode.DIRECT_EMBED -> {
                 val url = EMBED_URL.format(videoId)
-                Log.i(PlaybackCapabilities.TAG, "GECKO_LOAD mode=DIRECT_EMBED url=$url referrer=$YOUTUBE_ORIGIN")
+                Log.i(GeckoRuntimeHolder.TAG, "GECKO_LOAD mode=DIRECT_EMBED url=$url referrer=$YOUTUBE_ORIGIN")
                 session.load(GeckoSession.Loader().uri(url).referrer(YOUTUBE_ORIGIN))
             }
 
@@ -67,7 +61,7 @@ class GeckoViewPlayerActivity : Activity() {
                 val server = WrapperServer(html)
                 wrapperServer = server
                 val url = server.urlFor(videoId)
-                Log.i(PlaybackCapabilities.TAG, "GECKO_LOAD mode=LOCAL_WRAPPER url=$url")
+                Log.i(GeckoRuntimeHolder.TAG, "GECKO_LOAD mode=LOCAL_WRAPPER url=$url")
                 session.load(GeckoSession.Loader().uri(url))
             }
         }
@@ -79,32 +73,32 @@ class GeckoViewPlayerActivity : Activity() {
                 session: GeckoSession,
                 url: String,
             ) {
-                Log.i(PlaybackCapabilities.TAG, "GECKO_PAGE_START $url")
+                Log.i(GeckoRuntimeHolder.TAG, "GECKO_PAGE_START $url")
             }
 
             override fun onPageStop(
                 session: GeckoSession,
                 success: Boolean,
             ) {
-                Log.i(PlaybackCapabilities.TAG, "GECKO_PAGE_STOP success=$success")
+                Log.i(GeckoRuntimeHolder.TAG, "GECKO_PAGE_STOP success=$success")
             }
         }
 
     private val contentDelegate =
         object : GeckoSession.ContentDelegate {
             override fun onCrash(session: GeckoSession) {
-                Log.w(PlaybackCapabilities.TAG, "GECKO_CONTENT=crash")
+                Log.w(GeckoRuntimeHolder.TAG, "GECKO_CONTENT=crash")
             }
 
             override fun onKill(session: GeckoSession) {
-                Log.w(PlaybackCapabilities.TAG, "GECKO_CONTENT=killed")
+                Log.w(GeckoRuntimeHolder.TAG, "GECKO_CONTENT=killed")
             }
 
             override fun onTitleChange(
                 session: GeckoSession,
                 title: String?,
             ) {
-                Log.i(PlaybackCapabilities.TAG, "GECKO_TITLE=$title")
+                Log.i(GeckoRuntimeHolder.TAG, "GECKO_TITLE=$title")
             }
         }
 
@@ -115,14 +109,14 @@ class GeckoViewPlayerActivity : Activity() {
         session = null
         wrapperServer?.close()
         wrapperServer = null
-        Log.i(PlaybackCapabilities.TAG, "GECKO_SESSION=closed")
+        Log.i(GeckoRuntimeHolder.TAG, "GECKO_SESSION=closed")
     }
 
     companion object {
         const val EXTRA_VIDEO_ID = "videoId"
         const val EXTRA_MODE = "mode"
 
-        /** 埋め込みが許可されている確認用の動画。お気に入りが空でも試せるようにする。 */
+        /** 埋め込みが許可されている確認用の動画（Blender の Big Buck Bunny）。 */
         const val DEFAULT_VIDEO_ID = "aqz-KE-bpKQ"
 
         private const val YOUTUBE_ORIGIN = "https://www.youtube.com/"

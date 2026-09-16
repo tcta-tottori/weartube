@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WearTube PoC</string>
+    <string name="device">%1$s / API %2$d / %3$d×%4$d px</string>
+    <string name="video">動画 %1$s</string>
+    <string name="mode_wrapper">ラッパー経由</string>
+    <string name="mode_embed">埋め込み URL 直接</string>
+    <string name="gecko_failed">GeckoView を起動できません\n%1$s</string>
+</resources>
